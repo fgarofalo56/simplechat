@@ -1,0 +1,19 @@
+# Claude Code Project Configuration
+# Created by sync-claude-code.ps1
+
+archon_project_id: "0ff42a4e-466c-499f-92e9-c78686d82785"
+project_title: "SimpleChat"
+github_repo: "https://github.com/microsoft/simplechat"
+created_at: "2026-03-24"
+updated_at: "2026-03-24"
+
+template_profile:
+  template_version: "3.0.0"
+  project_type: "fullstack"
+  primary_language: "python"
+  framework: "not sure what framework"
+  skill_groups: ["core", "frontend", "backend", "framework_prp", "framework_harness", "framework_speckit", "ai_ml", "smart_home_iot", "niche", "cloud_infra"]
+  command_groups: ["base", "prp", "harness"]
+  dev_frameworks: ["prp", "harness", "speckit"]
+  synced_with: "sync-claude-code.ps1"
+  last_synced: "2026-03-24"

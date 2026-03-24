@@ -15,11 +15,34 @@ __pycache__
 
 # Azure App Service artifacts
 .env
+.env.*
 .pem
 .deployment
 
-# macOS  custom attributes file
+# Secrets, keys, and credentials — NEVER commit these
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.cer
+*.jks
+*.keystore
+secrets/
+secrets.*
+credentials.json
+service-account.json
+**/client_secret*.json
+**/*secret*.*
+**/*credential*.*
+*.connection-string
+.azure/
+.aws/
+.gcp/
+
+# macOS custom attributes file
 .ds_store
+.DS_Store
 
 # Configured custom script extensions, powershell scripts, and linux scripts
 priv-*
@@ -29,6 +52,8 @@ priv-*
 
 # temporary files
 flask_session
+temp/
+tmp/
 
 # node modules
 /node_modules
@@ -45,3 +70,6 @@ flask_session
 tmp**cwd
 /tmp_images
 nul
+
+# Claude Code working files
+.claude-backup/

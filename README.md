@@ -8,6 +8,97 @@ Built with modularity in mind, the application offers a suite of powerful **opti
 
 The application utilizes **Azure Cosmos DB** for storing conversations, metadata, and settings, and is secured using **Azure Active Directory (Entra ID)** for authentication and fine-grained Role-Based Access Control (RBAC) via App Roles. Designed for enterprise use, it runs reliably on **Azure App Service** and supports deployment in both **Azure Commercial** and **Azure Government** cloud environments, offering a versatile tool for knowledge discovery, content generation, and collaborative AI-powered tasks within a secure, customizable, and Azure-native framework.
 
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Architecture](#architecture)
+- [Development](#development)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+
+---
+
+
+---
+
+## Overview
+
+A project created with Claude Code tools
+
+### Features
+
+- Modern Frontend with React/Vue
+- RESTful or GraphQL API
+- Database Integration
+- Authentication & Authorization
+- Real-time Capabilities
+
+---
+
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Language** | python |
+| **Framework** | not sure what framework |
+| **Styling** | Tailwind CSS |
+| **Database** | PostgreSQL / MongoDB |
+
+---
+
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Docker & Docker Compose
+- PostgreSQL (or use Docker)
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/microsoft/simplechat.git
+cd simplechat
+
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env
+
+# Start database
+docker-compose up -d db
+
+# Run migrations
+npm run db:migrate
+
+# Start development
+npm run dev
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret for JWT tokens |
+| `NEXT_PUBLIC_API_URL` | Backend API URL |
+
+---
+
 ## Documentation
 
 [Simple Chat Documentation | Simple Chat Documentation](https://microsoft.github.io/simplechat/)
@@ -124,6 +215,96 @@ azd up
 ## Architecture
 
 ![Architecture](./docs/images/architecture.png)
+
+
+---
+
+## Development
+
+### Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start all services |
+| `npm run dev:web` | Start frontend only |
+| `npm run dev:api` | Start backend only |
+| `npm run build` | Build all packages |
+| `npm run db:migrate` | Run migrations |
+| `npm run db:studio` | Open Prisma Studio |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/login` | User login |
+| `POST` | `/api/auth/register` | User registration |
+| `GET` | `/api/users` | List users |
+
+---
+
+
+---
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run frontend tests
+npm run test:web
+
+# Run backend tests
+npm run test:api
+
+# Run E2E tests
+npm run test:e2e
+```
+
+---
+
+
+---
+
+## Deployment
+
+### Docker
+
+```bash
+# Build all images
+docker-compose build
+
+# Start all services
+docker-compose up -d
+```
+
+### Production
+
+```bash
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+```
+
+---
+
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+
+---
+
+## License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
 
 ## Features
 
