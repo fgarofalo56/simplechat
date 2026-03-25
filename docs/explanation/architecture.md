@@ -1,4 +1,5 @@
-# explanation/architecture.md
+# Architecture
+
 ---
 layout: libdoc/page
 title: Architecture
@@ -6,435 +7,372 @@ order: 110
 category: Explanation
 ---
 
+[Home](../../README.md) > [Docs](../README.md) > **Architecture**
 
-This document explains the overall architecture, design principles, and key concepts behind Simple Chat. Understanding these foundations will help you make informed decisions about deployment, configuration, and usage.
+> **TL;DR** — Simple Chat is a Flask-based, Azure-native RAG application. Users upload documents, which are extracted, chunked, embedded, and indexed. The AI generates responses grounded in user data via hybrid search, with enterprise security via Azure AD and 20+ optional features toggled from the Admin UI.
 
-## System Overview
+---
+
+## 📑 Table of Contents
+
+- [System Overview](#-system-overview)
+- [High-Level Architecture](#-high-level-architecture)
+- [Core Components](#-core-components)
+- [Data Flow and Processing](#-data-flow-and-processing)
+- [Security Architecture](#-security-architecture)
+- [Scalability Architecture](#-scalability-architecture)
+- [Integration Architecture](#-integration-architecture)
+- [Deployment Architectures](#-deployment-architectures)
+- [Design Patterns](#-design-patterns-and-best-practices)
+- [Technology Choices](#-technology-choices-and-rationale)
+
+---
+
+## 📋 System Overview
 
 Simple Chat is built as a modern, cloud-native application leveraging Azure's AI and data services to provide Retrieval-Augmented Generation (RAG) capabilities with enterprise-grade security and scalability.
 
 ### Core Principles
 
-**Security-First Design**
-- Azure Active Directory integration for authentication
-- Role-based access control (RBAC) for authorization
-- Azure Managed Identity for service-to-service communication
-- Private networking support for enterprise deployments
+| Principle | Details |
+|-----------|---------|
+| **Security-First** | Azure AD authentication, RBAC authorization, Managed Identity, private networking |
+| **Scalable** | Stateless design, Redis session externalization, horizontal scaling, autoscaling |
+| **Extensible** | Modular features, admin-configurable toggles, plugin architecture, API-first design |
 
-**Scalable Architecture**
-- Stateless application design with external session storage
-- Horizontal scaling support across multiple App Service instances
-- Configurable autoscaling for variable workloads
-- Distributed caching with Azure Redis Cache
+---
 
-**Extensible Framework**
-- Modular feature architecture with optional components
-- Admin-configurable settings for all major features
-- Plugin-style integration for additional AI services
-- API-first design for custom integrations
+## 🏗️ High-Level Architecture
 
-## High-Level Architecture
+```mermaid
+flowchart TD
+    Users["👥 Users (Browsers)"]
+    AAD["🔐 Azure AD (Auth)"]
+    App["🖥️ Simple Chat (App Service)"]
 
-```
-┌─────────────┐    ┌──────────────┐    ┌─────────────────┐
-│   Users     │───▶│ Azure AD     │───▶│ Simple Chat     │
-│ (Browsers)  │    │ (Auth)       │    │ (App Service)   │
-└─────────────┘    └──────────────┘    └─────────────────┘
-                                                │
-                   ┌─────────────────────────────┼─────────────────────────────┐
-                   │                             ▼                             │
-                   │        ┌─────────────────────────────────────┐           │
-                   │        │          Data Layer                 │           │
-                   │        │                                     │           │
-                   │        │  ┌─────────────┐ ┌──────────────┐  │           │
-                   │        │  │ Cosmos DB   │ │ AI Search    │  │           │
-                   │        │  │(Metadata)   │ │(Documents)   │  │           │
-                   │        │  └─────────────┘ └──────────────┘  │           │
-                   │        └─────────────────────────────────────┘           │
-                   │                                                          │
-                   │        ┌─────────────────────────────────────┐           │
-                   │        │           AI Services               │           │
-                   │        │                                     │           │
-                   │        │ ┌───────────┐ ┌─────────────────┐   │           │
-                   │        │ │Azure      │ │ Document        │   │           │
-                   │        │ │OpenAI     │ │ Intelligence    │   │           │
-                   │        │ └───────────┘ └─────────────────┘   │           │
-                   │        │                                     │           │
-                   │        │ ┌───────────┐ ┌─────────────────┐   │           │
-                   │        │ │Content    │ │ Other AI        │   │           │
-                   │        │ │Safety     │ │ Services        │   │           │
-                   │        │ └───────────┘ └─────────────────┘   │           │
-                   │        └─────────────────────────────────────┘           │
-                   └────────────────────────────────────────────────────────────┘
+    Users --> AAD --> App
+
+    subgraph DataLayer["🗄️ Data Layer"]
+        Cosmos["Cosmos DB<br/>(Metadata, Conversations)"]
+        Search["AI Search<br/>(Document Index)"]
+        Blob["Storage Account<br/>(Enhanced Citations)"]
+    end
+
+    subgraph AIServices["🤖 AI Services"]
+        OpenAI["Azure OpenAI<br/>(GPT + Embeddings)"]
+        DocIntel["Document Intelligence<br/>(OCR + Extraction)"]
+        Safety["Content Safety<br/>(Moderation)"]
+    end
+
+    subgraph Optional["⚙️ Optional Services"]
+        Speech["Speech Service"]
+        Video["Video Indexer"]
+        Redis["Redis Cache"]
+        KV["Key Vault"]
+    end
+
+    App --> DataLayer
+    App --> AIServices
+    App --> Optional
 ```
 
-## Core Components
+---
+
+## 🔌 Core Components
 
 ### Application Tier
 
-**Azure App Service**
-- **Purpose**: Hosts the Python web application
-- **Technology**: Flask-based web framework
-- **Scaling**: Horizontal scaling with session state externalization
-- **Security**: Integrated with Azure AD, supports Managed Identity
+**Azure App Service / Container App**
+
+| Property | Details |
+|----------|---------|
+| **Purpose** | Hosts the Python web application |
+| **Technology** | Flask 2.2.5 + Gunicorn |
+| **Scaling** | Horizontal with session state externalization |
+| **Security** | Azure AD integrated, Managed Identity support |
 
 **Key Responsibilities:**
 - User interface rendering and interaction handling
 - Business logic orchestration
-- API endpoint management
+- API endpoint management (40+ route modules)
 - Authentication and authorization enforcement
 - Integration with Azure AI services
 
-### Data Layer
+---
 
-**Azure Cosmos DB**
-- **Purpose**: Primary data store for application metadata
-- **Data Model**: Document-based JSON storage
-- **Containers**: Conversations, documents, users, groups, settings
-- **Scaling**: Request Unit (RU) based autoscaling
-- **Consistency**: Session consistency for user interactions
+### 🗄️ Data Layer
 
-**Stored Data Types:**
-- Conversation history and metadata
+#### Azure Cosmos DB
+
+| Property | Details |
+|----------|---------|
+| **Purpose** | Primary data store for application metadata |
+| **Data Model** | Document-based JSON storage (26 containers) |
+| **Scaling** | Request Unit (RU) based autoscaling |
+| **Consistency** | Session consistency for user interactions |
+
+**Stored Data:**
+- Conversation history and messages
 - Document metadata and processing status
 - User preferences and group memberships
 - Application configuration settings
-- Feedback and audit logs
+- Feedback, audit logs, and safety violations
 
-**Azure AI Search**
-- **Purpose**: Document content indexing and retrieval
-- **Technology**: Hybrid search (vector + keyword)
-- **Indexes**: Separate indexes for personal and group documents
-- **Scaling**: Search units (replicas + partitions)
-- **Features**: Semantic search, custom ranking, faceted search
+#### Azure AI Search
 
-**Search Index Structure:**
-- Document chunks with embeddings
-- Metadata fields for filtering
-- User and group access controls
-- Classification and tagging information
+| Property | Details |
+|----------|---------|
+| **Purpose** | Document content indexing and retrieval |
+| **Technology** | Hybrid search (vector + keyword) |
+| **Indexes** | `simplechat-user-index`, `simplechat-group-index`, `simplechat-public-index` |
+| **Features** | Semantic search, custom ranking, faceted filtering |
 
-**Azure Storage Account** (Enhanced Citations)
-- **Purpose**: Stores processed document files for direct access
-- **Organization**: User-scoped and document-scoped folders
-- **Access**: Private with time-limited SAS tokens
-- **Integration**: Links citations to original document pages/timestamps
+#### Azure Storage Account
 
-### AI Services Layer
+| Property | Details |
+|----------|---------|
+| **Purpose** | Stores processed document files for direct access (Enhanced Citations) |
+| **Organization** | User-scoped and document-scoped blob containers |
+| **Access** | Private with time-limited SAS tokens |
 
-**Azure OpenAI**
-- **Chat Models**: GPT-4, GPT-3.5-turbo for conversational AI
-- **Embedding Models**: text-embedding-ada-002, text-embedding-3 variants
-- **Image Generation**: DALL-E models for image creation
-- **Integration**: Both direct endpoints and API Management support
+---
 
-**Azure AI Document Intelligence**
-- **Purpose**: Extract text and structure from uploaded documents
-- **Capabilities**: OCR, layout analysis, table extraction
-- **File Types**: PDF, Office documents, images
-- **Integration**: Async processing with status tracking
+### 🤖 AI Services Layer
 
-**Azure AI Content Safety**
-- **Purpose**: Content moderation and safety filtering
-- **Categories**: Hate, sexual, violence, self-harm detection
-- **Custom Lists**: Organization-specific blocked terms
-- **Integration**: Pre-processing filter for all user inputs
+| Service | Purpose | Capabilities |
+|---------|---------|-------------|
+| **Azure OpenAI** | Conversational AI + Embeddings | GPT-4.1, GPT-4o, text-embedding-3, DALL-E / GPT-Image |
+| **Document Intelligence** | Text extraction from documents | OCR, layout analysis, table extraction |
+| **Content Safety** | Content moderation | Hate, sexual, violence, self-harm detection + custom block lists |
+| **Speech Service** | Audio transcription + voice | Speech-to-text, text-to-speech |
+| **Video Indexer** | Video content analysis | Transcript extraction, speaker ID, OCR on frames |
 
-**Additional AI Services:**
-- **Speech Service**: Audio file transcription
-- **Video Indexer**: Video content analysis and transcription
-- **Custom AI Models**: Integration points for specialized models
+---
 
-## Data Flow and Processing
+## 🔄 Data Flow and Processing
 
 ### Document Ingestion Workflow
 
-```
-User Upload ─┐
-             ├─▶ Document Intelligence ─┐
-File Types   ┘                           ├─▶ Text Extraction
-                                         │
-Audio Files ─────▶ Speech Service ──────┘
-                                         │
-Video Files ─────▶ Video Indexer ───────┘
-                                         │
-                                         ▼
-                              ┌─────────────────┐
-                              │ Content Chunking │
-                              │ & Vectorization │
-                              └─────────────────┘
-                                         │
-                                         ▼
-                              ┌─────────────────┐
-                              │    Storage      │
-                              │ ┌─────────────┐ │
-                              │ │ Cosmos DB   │ │ ◄─── Metadata
-                              │ │ (Metadata)  │ │
-                              │ └─────────────┘ │
-                              │ ┌─────────────┐ │
-                              │ │ AI Search   │ │ ◄─── Content + Embeddings
-                              │ │ (Content)   │ │
-                              │ └─────────────┘ │
-                              │ ┌─────────────┐ │
-                              │ │ Storage     │ │ ◄─── Processed Files
-                              │ │ (Files)     │ │      (Enhanced Citations)
-                              │ └─────────────┘ │
-                              └─────────────────┘
+```mermaid
+flowchart TD
+    Upload["📄 User Uploads File"]
+    Detect{"File Type?"}
+
+    Upload --> Detect
+
+    Detect -->|PDF, DOCX, Images| DI["Document Intelligence<br/>OCR + Layout"]
+    Detect -->|Video| VI["Video Indexer<br/>Transcript + OCR"]
+    Detect -->|Audio| SS["Speech Service<br/>Transcription"]
+    Detect -->|TXT, MD, CSV, JSON| IP["Internal Parsers"]
+
+    DI --> Chunk["✂️ Content Chunking"]
+    VI --> Chunk
+    SS --> Chunk
+    IP --> Chunk
+
+    Chunk --> Embed["🧮 Azure OpenAI<br/>Generate Embeddings"]
+
+    Embed --> Store["📊 Storage"]
+    Store --> S1["Cosmos DB<br/>(Metadata)"]
+    Store --> S2["AI Search<br/>(Content + Vectors)"]
+    Store --> S3["Blob Storage<br/>(Original Files)"]
 ```
 
 ### Chat Processing Workflow
 
-```
-User Message ─┐
-              │
-              ▼
-    ┌─────────────────┐
-    │ Content Safety  │ ◄─── Optional pre-processing filter
-    │   Filtering     │
-    └─────────────────┘
-              │
-              ▼
-    ┌─────────────────┐
-    │   RAG Query     │
-    │   Processing    │
-    └─────────────────┘
-              │
-              ├─▶ AI Search ────┐
-              │                 │
-              ▼                 ▼
-    ┌─────────────────┐  ┌─────────────────┐
-    │  Document       │  │   Relevant      │
-    │  Retrieval      │  │   Context       │
-    └─────────────────┘  └─────────────────┘
-              │                 │
-              └─────────┬───────┘
-                        │
-                        ▼
-              ┌─────────────────┐
-              │  Azure OpenAI   │
-              │  Generation     │
-              └─────────────────┘
-                        │
-                        ▼
-              ┌─────────────────┐
-              │   Response      │
-              │ + Citations     │
-              └─────────────────┘
+```mermaid
+sequenceDiagram
+    participant User
+    participant Safety as Content Safety
+    participant Search as AI Search
+    participant GPT as Azure OpenAI
+    participant UI as Chat UI
+
+    User->>Safety: Send message
+    Safety-->>Safety: Analyze content
+
+    alt Content is safe
+        Safety->>Search: Hybrid search query
+        Search-->>Search: Vector + keyword retrieval
+        Search->>GPT: User message + relevant context
+        GPT->>UI: AI response + citations
+    else Content is unsafe
+        Safety->>UI: Block message + notification
+    end
 ```
 
-## Security Architecture
+---
+
+## 🔒 Security Architecture
 
 ### Authentication & Authorization
 
-**Azure Active Directory Integration**
-- **Identity Provider**: Centralized identity management
-- **Authentication Flow**: OAuth 2.0/OpenID Connect
-- **Multi-tenancy**: Support for multiple Azure AD tenants
-- **Device Security**: Conditional access policy support
+```mermaid
+flowchart LR
+    User["👤 User"] --> AAD["Azure AD<br/>OAuth 2.0 / OIDC"]
+    AAD --> App["Simple Chat"]
+    App --> Roles{"App Role?"}
 
-**Role-Based Access Control (RBAC)**
-```
-Application Roles:
-├── Admin
-│   └── Full system configuration access
-├── User  
-│   └── Basic chat and document access
-├── CreateGroups
-│   └── Permission to create new groups
-├── SafetyViolationAdmin
-│   └── View and manage content safety violations
-└── FeedbackAdmin
-    └── Access user feedback and analytics
+    Roles -->|Admin| AdminAccess["Full system config"]
+    Roles -->|User| UserAccess["Chat + documents"]
+    Roles -->|CreateGroups| GroupAccess["Create groups"]
+    Roles -->|SafetyAdmin| SafetyAccess["View violations"]
+    Roles -->|FeedbackAdmin| FeedbackAccess["View feedback"]
 ```
 
-**Data Access Control**
-- **Personal Workspaces**: User-scoped document access
-- **Group Workspaces**: Role-based group membership
-- **Document Permissions**: Fine-grained access controls
-- **Search Isolation**: User/group-aware search results
+### Data Access Control
+
+| Scope | Isolation |
+|-------|-----------|
+| **Personal Workspaces** | User-scoped — only the owner can access |
+| **Group Workspaces** | Role-based group membership (Owner, Admin, Member) |
+| **Public Workspaces** | Visible to all authenticated users |
+| **Search Isolation** | Separate indexes per workspace type |
 
 ### Network Security
 
-**Private Networking Support**
-- **Private Endpoints**: Secure service-to-service communication
-- **VNet Integration**: Application subnet isolation  
-- **NSG Rules**: Network traffic filtering and control
-- **Private DNS**: Internal name resolution
+| Layer | Technology |
+|-------|-----------|
+| **Authentication** | Azure AD (Entra ID) via MSAL |
+| **Service Auth** | Managed Identity (eliminates stored secrets) |
+| **Secrets** | Azure Key Vault |
+| **Encryption** | TLS in transit, Azure-native at rest |
+| **Private Networking** | VNet integration, Private Endpoints, NSGs, Private DNS |
 
-**Service Security**
-- **Managed Identity**: Eliminate stored secrets
-- **Key Vault Integration**: Secure secret management
-- **TLS Encryption**: End-to-end encryption in transit
-- **At-Rest Encryption**: Azure service native encryption
+---
 
-## Scalability Architecture
+## ⚡ Scalability Architecture
 
 ### Horizontal Scaling Design
 
-**Stateless Application**
-- **Session Storage**: Externalized to Azure Redis Cache
-- **No Local State**: All persistent data in external services
-- **Load Balancer**: Azure App Service built-in load balancing
-- **Health Checks**: Application health monitoring
+```mermaid
+flowchart LR
+    LB["Load Balancer"] --> I1["Instance 1"]
+    LB --> I2["Instance 2"]
+    LB --> I3["Instance N"]
 
-**Auto-scaling Configuration**
-```
-App Service Scaling:
-├── CPU-based scaling (70% threshold)
-├── Memory-based scaling (80% threshold)
-├── Request queue scaling
-└── Custom metrics scaling
+    I1 --> Redis["Redis Cache<br/>(Shared Sessions)"]
+    I2 --> Redis
+    I3 --> Redis
 
-Database Scaling:
-├── Cosmos DB autoscale (RU/s based)
-├── AI Search replicas (query performance)
-├── AI Search partitions (storage capacity)
-└── Cache scaling (memory and connections)
+    I1 --> Cosmos["Cosmos DB"]
+    I2 --> Cosmos
+    I3 --> Cosmos
 ```
+
+| Component | Scaling Strategy |
+|-----------|-----------------|
+| **App Service** | Horizontal (add instances) + Vertical (increase tier) |
+| **Cosmos DB** | Autoscale RU/s per container + global distribution |
+| **AI Search** | Replicas (query throughput) + Partitions (storage) |
+| **Redis Cache** | Memory and connection scaling |
+| **Azure OpenAI** | Multiple deployments + APIM load balancing |
 
 ### Performance Optimization
 
-**Caching Strategy**
-- **Application Cache**: Redis for session and temporary data
-- **Search Cache**: AI Search query result caching
-- **CDN Integration**: Static asset delivery optimization
-- **Browser Caching**: Client-side caching headers
+| Strategy | Implementation |
+|----------|---------------|
+| **Session Cache** | Redis for distributed session storage |
+| **Search Cache** | AI Search query result caching |
+| **Settings Cache** | In-memory with Redis fallback |
+| **Static Assets** | Browser caching headers |
+| **DB Optimization** | Partition strategy, connection pooling, minimized RU consumption |
 
-**Database Optimization**
-- **Partition Strategy**: Efficient data distribution
-- **Index Optimization**: Query-specific indexing
-- **Connection Pooling**: Efficient connection management
-- **Query Optimization**: Minimized RU consumption
+---
 
-## Integration Architecture
+## 🔌 Integration Architecture
 
-### External Service Integration
+### Extensibility Points
 
-**API-First Design**
-- **REST APIs**: Standard HTTP/JSON interfaces
-- **Authentication**: Bearer token and Managed Identity
-- **Rate Limiting**: Built-in throttling and retry logic
-- **Error Handling**: Comprehensive error responses
+| Integration | Description |
+|-------------|-------------|
+| **Custom AI Models** | Bring your own model endpoints via APIM |
+| **OpenAPI Plugins** | Custom tool integrations via Semantic Kernel |
+| **Agents** | Configurable AI agents with multi-agent orchestration |
+| **APIM Gateway** | Centralized API management for all AI services |
+| **REST APIs** | Standard HTTP/JSON with Bearer token + Managed Identity auth |
 
-**Extensibility Points**
-```
-Integration Capabilities:
-├── Custom AI Models
-│   └── Bring your own model endpoints
-├── External Data Sources
-│   └── Custom document connectors
-├── Workflow Integrations
-│   └── Business process automation
-└── Reporting & Analytics
-    └── Custom dashboard integration
-```
+### 📊 Monitoring and Observability
 
-### Monitoring and Observability
+| Component | Purpose |
+|-----------|---------|
+| **Application Insights** | Request tracing, error tracking, custom telemetry |
+| **Azure Monitor** | Resource health, cost monitoring, alerting |
+| **Activity Logging** | Audit trail in Cosmos DB for all user actions |
+| **Debug Logging** | Configurable verbose logging with auto-disable timer |
 
-**Application Insights Integration**
-- **Performance Monitoring**: Request/response tracking
-- **Error Tracking**: Exception and failure analysis
-- **User Analytics**: Usage patterns and behavior
-- **Custom Telemetry**: Business-specific metrics
+---
 
-**Azure Monitor Integration**
-- **Resource Health**: Service availability monitoring
-- **Cost Monitoring**: Resource usage and cost tracking
-- **Security Monitoring**: Audit log analysis
-- **Alerting**: Proactive issue notification
+## 📦 Deployment Architectures
 
-## Deployment Architectures
+### Single-Region Deployment (Recommended)
 
-### Single-Region Deployment
+> [!TIP]
+> Single-region is suitable for most enterprise deployments — lower latency, simpler networking, easier data residency compliance.
 
-**Standard Configuration:**
-- All services deployed in single Azure region
-- VNet integration for private networking
-- Backup and disaster recovery within region
-- Suitable for most enterprise deployments
-
-**Benefits:**
-- Lower latency between components
-- Simplified networking configuration
-- Reduced cross-region data transfer costs
-- Easier compliance with data residency requirements
+All services deployed in one Azure region with optional VNet integration and private endpoints.
 
 ### Multi-Region Deployment
 
-**Global Distribution:**
-- Primary and secondary region deployments
-- Cross-region replication for data services
-- Traffic manager for intelligent routing
-- Disaster recovery and business continuity
+> [!WARNING]
+> Multi-region adds complexity — consider data synchronization, consistency, cross-region latency, and data sovereignty requirements.
 
-**Considerations:**
-- Increased complexity and cost
-- Data synchronization challenges
-- Network latency for cross-region calls
-- Compliance with data sovereignty requirements
+Primary and secondary region deployments with Cosmos DB global distribution, Traffic Manager routing, and regional failover.
 
-## Design Patterns and Best Practices
+### Supported Cloud Environments
 
-### Microservices Principles
+| Environment | Support |
+|-------------|---------|
+| **Azure Commercial (Public)** | Full support |
+| **Azure Government** | Full support (optimized Terraform) |
+| **Custom Cloud** | Configurable endpoints |
 
-**Service Separation**
-- **Document Processing**: Independent processing pipeline
-- **Search Service**: Dedicated search and retrieval
-- **Chat Service**: Conversation management and AI integration
-- **Admin Service**: Configuration and management APIs
+---
 
-**Communication Patterns**
-- **Async Processing**: Message queues for long-running operations
-- **Event-Driven**: Event-based service communication
-- **Circuit Breakers**: Fault tolerance for external dependencies
-- **Retry Logic**: Resilient service interactions
+## 🏗️ Design Patterns and Best Practices
 
-### Data Consistency Patterns
+### Service Separation
 
-**Eventually Consistent**
-- Document processing and search indexing
-- Cross-service data synchronization
-- User preference replication
+| Service Area | Responsibility |
+|-------------|----------------|
+| **Document Processing** | Independent ingestion pipeline |
+| **Search & Retrieval** | Dedicated search and hybrid retrieval |
+| **Chat & AI** | Conversation management and AI orchestration |
+| **Admin & Config** | Configuration and management APIs |
 
-**Strongly Consistent**
-- User authentication and authorization
-- Configuration changes
-- Critical business operations
+### Communication Patterns
 
-## Technology Choices and Rationale
+| Pattern | Usage |
+|---------|-------|
+| **Async Processing** | Document ingestion, video/audio processing |
+| **Event-Driven** | File processing status updates |
+| **Circuit Breakers** | Fault tolerance for external AI services |
+| **Retry Logic** | Resilient service interactions with backoff |
 
-### Azure Services Selection
+### Data Consistency
 
-**Why Azure OpenAI?**
-- Enterprise-grade AI with Azure security controls
-- Private deployment options for sensitive data
-- Integration with Azure ecosystem
-- Compliance with enterprise requirements
+| Type | Where Applied |
+|------|---------------|
+| **Eventually Consistent** | Document processing → search indexing, cross-service sync |
+| **Strongly Consistent** | Authentication, configuration changes, critical operations |
 
-**Why Cosmos DB?**
-- Global distribution capabilities
-- Flexible schema for evolving data models
-- Built-in scaling and performance
-- Strong consistency options when needed
+---
 
-**Why AI Search?**
-- Hybrid search capabilities (vector + keyword)
-- Built-in semantic search features
-- Integration with Azure AI services
-- Scalable search infrastructure
+## 💡 Technology Choices and Rationale
 
-### Framework and Language Choices
+| Choice | Rationale |
+|--------|-----------|
+| **Azure OpenAI** | Enterprise-grade AI with Azure security, private deployments, compliance |
+| **Cosmos DB** | Flexible schema, global distribution, built-in scaling, session consistency |
+| **AI Search** | Hybrid search (vector + keyword), semantic ranking, Azure integration |
+| **Python/Flask** | Rich AI/ML ecosystem, strong Azure SDK support, rapid development |
+| **Jinja2/Bootstrap 5** | Server-rendered templates, minimal frontend complexity, responsive design |
+| **Distroless Container** | Minimal attack surface, non-root execution, production-hardened |
 
-**Python/Flask**
-- Rich AI and ML library ecosystem
-- Rapid development and iteration
-- Strong Azure SDK support
-- Enterprise-ready deployment options
+---
 
-**React/TypeScript Frontend**
-- Modern, responsive user interface
-- Strong typing for maintainability
-- Rich component ecosystem
-- Mobile-responsive design capabilities
+> This architecture provides a solid foundation for understanding how Simple Chat components work together to deliver secure, scalable, and intelligent conversational AI capabilities.
 
-This architecture provides a solid foundation for understanding how Simple Chat components work together to deliver secure, scalable, and intelligent conversational AI capabilities.
+---
+
+[Home](../../README.md) > [Docs](../README.md) > **Architecture**

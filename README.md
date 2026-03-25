@@ -1,72 +1,170 @@
-![logo](./docs/images/logo-wide.png)
+![Simple Chat](./docs/images/logo-wide.png)
 
-# Overview
+![Version](https://img.shields.io/badge/version-0.239.002-blue)
+![Platform](https://img.shields.io/badge/platform-Azure-0078D4?logo=microsoftazure)
+![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-The **Simple Chat Application** is a comprehensive, web-based platform designed to facilitate secure and context-aware interactions with generative AI models, specifically leveraging **Azure OpenAI**. Its central feature is **Retrieval-Augmented Generation (RAG)**, which significantly enhances AI interactions by allowing users to ground conversations in their own data. Users can upload personal ("Your Workspace") or shared group ("Group Workspaces") documents, which are processed using **Azure AI Document Intelligence**, chunked intelligently based on content type, vectorized via **Azure OpenAI Embeddings**, and indexed into **Azure AI Search** for efficient hybrid retrieval (semantic + keyword).
-
-Built with modularity in mind, the application offers a suite of powerful **optional features** that can be enabled via administrative settings. These include integrating **Azure AI Content Safety** for governance, providing **Image Generation** capabilities (DALL-E), processing **Video** (via Azure Video Indexer) and **Audio** (via Azure Speech Service) files for RAG, implementing **Document Classification** schemes, collecting **User Feedback**, enabling **Conversation Archiving** for compliance, extracting **AI-driven Metadata**, and offering **Enhanced Citations** linked directly to source documents stored in Azure Storage.
-
-The application utilizes **Azure Cosmos DB** for storing conversations, metadata, and settings, and is secured using **Azure Active Directory (Entra ID)** for authentication and fine-grained Role-Based Access Control (RBAC) via App Roles. Designed for enterprise use, it runs reliably on **Azure App Service** and supports deployment in both **Azure Commercial** and **Azure Government** cloud environments, offering a versatile tool for knowledge discovery, content generation, and collaborative AI-powered tasks within a secure, customizable, and Azure-native framework.
-
+> **TL;DR** — An enterprise-ready, Azure-native web app for AI-powered document chat using Retrieval-Augmented Generation (RAG). Upload documents, ask questions, get AI answers grounded in your data — with full Azure AD security, multi-workspace collaboration, and 20+ optional features configurable from the Admin UI.
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
-- [Overview](#overview)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Architecture](#architecture)
-- [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-
----
-
-
----
-
-## Overview
-
-A project created with Claude Code tools
-
-### Features
-
-- Modern Frontend with React/Vue
-- RESTful or GraphQL API
-- Database Integration
-- Authentication & Authorization
-- Real-time Capabilities
+- [Overview](#-overview)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [Quick Deploy](#-quick-deploy)
+- [Documentation](#-documentation)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
+## 📋 Overview
+
+**Simple Chat** is a comprehensive, web-based platform for secure, context-aware interactions with generative AI models via **Azure OpenAI**. Its core capability is **Retrieval-Augmented Generation (RAG)** — users upload documents to personal, group, or public workspaces, and the AI grounds its responses in that data.
+
+```mermaid
+flowchart LR
+    A[📄 Upload Documents] --> B[🔍 Extract & Chunk]
+    B --> C[🧮 Generate Embeddings]
+    C --> D[📊 Index in AI Search]
+    D --> E[💬 Ask Questions]
+    E --> F[🤖 AI Answers + Citations]
+```
+
+Documents are processed using **Azure AI Document Intelligence**, chunked intelligently, vectorized via **Azure OpenAI Embeddings**, and indexed into **Azure AI Search** for hybrid retrieval (semantic + keyword). The AI then generates responses grounded in your data with traceable citations.
 
 ---
 
-## Tech Stack
+## ✨ Features
+
+### Core Capabilities
+
+| Feature | Description |
+|---------|-------------|
+| **AI Chat** | Interact with GPT-4.1, GPT-4o, and other Azure OpenAI models |
+| **RAG with Hybrid Search** | Vector + keyword search across your uploaded documents |
+| **Document Management** | Upload, store, version, and manage documents across workspaces |
+| **Multi-Workspace** | Personal, Group, and Public workspaces with RBAC |
+| **Ephemeral Documents** | Temporary documents available only during the current chat session |
+| **Authentication & RBAC** | Azure AD (Entra ID) with custom app roles (`Admin`, `User`, `CreateGroups`, etc.) |
+
+### Optional Features (Admin-Configurable)
+
+<details>
+<summary><strong>Click to expand all optional features</strong></summary>
+
+| Feature | Description |
+|---------|-------------|
+| **Content Safety** | Azure AI Content Safety moderation with custom block lists |
+| **Image Generation** | DALL-E / GPT-Image models for on-demand image creation |
+| **Video Processing** | Azure Video Indexer for transcript extraction, speaker ID, and timestamped search |
+| **Audio Processing** | Azure Speech Service for audio transcription and voice interactions |
+| **Speech-to-Text** | Voice input directly in the chat interface (up to 90 seconds) |
+| **Text-to-Speech** | Natural voice responses powered by Azure Neural TTS |
+| **Enhanced Citations** | Clickable source links with page numbers/timestamps, backed by Azure Storage |
+| **Document Classification** | Custom classification labels and colors for document categorization |
+| **Metadata Extraction** | AI-powered auto-tagging with keywords, summaries, and author inference |
+| **Multi-Modal Vision** | GPT-4 Vision analysis for uploaded images alongside OCR |
+| **Conversation Archiving** | Soft-delete with archival for compliance and audit |
+| **User Feedback** | Thumbs up/down ratings with contextual comments |
+| **Conversation Export** | Export chat histories for offline use |
+| **File Sharing** | Share documents between users and workspaces |
+| **Redis Cache** | Distributed session storage for horizontal scaling |
+| **Agents & Plugins** | Semantic Kernel-powered agents with custom OpenAPI plugins |
+| **API Documentation** | Built-in Swagger/OpenAPI interactive documentation |
+| **Custom Branding** | Logo, title, favicon, and theme customization |
+| **Classification Banner** | Security classification banner for data sensitivity |
+| **Retention Policies** | Automatic cleanup of aged conversations and documents |
+
+</details>
+
+### Supported File Types
+
+| Category | Formats |
+|----------|---------|
+| **Text** | `txt`, `md`, `html`, `json`, `xml`, `yaml`, `yml`, `log` |
+| **Documents** | `pdf`, `doc`, `docm`, `docx`, `pptx`, `xlsx`, `xlsm`, `xls`, `csv` |
+| **Images** | `jpg`, `jpeg`, `png`, `bmp`, `tiff`, `tif`, `heif`, `heic` |
+| **Video** | `mp4`, `mov`, `avi`, `wmv`, `mkv`, `flv`, `webm`, `mpeg` + 18 more |
+| **Audio** | `mp3`, `wav`, `ogg`, `aac`, `flac`, `m4a` |
+
+---
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    Users[👥 Users / Browsers]
+    AAD[🔐 Azure AD / Entra ID]
+    App[🖥️ Simple Chat - Flask App]
+
+    Users --> AAD --> App
+
+    subgraph Data["🗄️ Data Layer"]
+        CosmosDB[(Cosmos DB)]
+        AISearch[(AI Search)]
+        Storage[(Blob Storage)]
+    end
+
+    subgraph AI["🤖 AI Services"]
+        OpenAI[Azure OpenAI]
+        DocIntel[Document Intelligence]
+        ContentSafety[Content Safety]
+        Speech[Speech Service]
+        VideoIdx[Video Indexer]
+    end
+
+    subgraph Infra["⚙️ Infrastructure"]
+        Redis[Redis Cache]
+        KeyVault[Key Vault]
+        AppInsights[App Insights]
+    end
+
+    App --> Data
+    App --> AI
+    App --> Infra
+```
+
+![Architecture Diagram](./docs/images/architecture.png)
+
+> [!NOTE]
+> For detailed architecture documentation, see [docs/explanation/architecture.md](./docs/explanation/architecture.md)
+
+---
+
+## 🔧 Tech Stack
 
 | Category | Technology |
 |----------|------------|
-| **Language** | python |
-| **Framework** | not sure what framework |
-| **Styling** | Tailwind CSS |
-| **Database** | PostgreSQL / MongoDB |
+| **Language** | Python 3.12 |
+| **Framework** | Flask 2.2.5 + Gunicorn |
+| **Frontend** | Jinja2 Templates + Bootstrap 5 + Vanilla JS |
+| **Database** | Azure Cosmos DB (NoSQL) |
+| **Search** | Azure AI Search (Hybrid: Vector + Keyword) |
+| **AI Models** | Azure OpenAI (GPT-4.1, GPT-4o, Embeddings, DALL-E) |
+| **Auth** | Azure AD (Entra ID) via MSAL |
+| **OCR** | Azure AI Document Intelligence |
+| **Container** | Distroless Python 3.12 (non-root) |
+| **IaC** | Azure Bicep + Terraform |
 
 ---
 
-
----
-
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL (or use Docker)
+- Azure subscription with access to Azure OpenAI
+- Azure AD tenant with app registration permissions
+- Python 3.11+ (for local development)
+- Azure CLI + Azure Developer CLI (`azd`)
 
-### Quick Start
+### Local Development
 
 ```bash
 # Clone the repository
@@ -74,262 +172,145 @@ git clone https://github.com/microsoft/simplechat.git
 cd simplechat
 
 # Install dependencies
-npm install
+cd application/single_app
+pip install -r requirements.txt
 
-# Set up environment
-cp .env.example .env
+# Configure environment
+cp example.env .env
+# Edit .env with your Azure service credentials
 
-# Start database
-docker-compose up -d db
-
-# Run migrations
-npm run db:migrate
-
-# Start development
-npm run dev
+# Run the application
+python app.py
 ```
+
+The app starts on `http://localhost:5000`.
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret for JWT tokens |
-| `NEXT_PUBLIC_API_URL` | Backend API URL |
+| `AZURE_COSMOS_ENDPOINT` | Cosmos DB account URI |
+| `AZURE_COSMOS_KEY` | Cosmos DB primary key |
+| `CLIENT_ID` | Azure AD app registration client ID |
+| `TENANT_ID` | Azure AD tenant ID |
+| `MICROSOFT_PROVIDER_AUTHENTICATION_SECRET` | App registration client secret |
+| `SECRET_KEY` | Flask session signing key (32+ random chars) |
+| `AZURE_ENVIRONMENT` | `public`, `usgovernment`, or `custom` |
+
+> [!TIP]
+> See [`application/single_app/example.env`](./application/single_app/example.env) for the complete list of environment variables.
 
 ---
 
-## Documentation
+## 📦 Quick Deploy
 
-[Simple Chat Documentation | Simple Chat Documentation](https://microsoft.github.io/simplechat/)
+Three deployment options are available:
 
-## Quick Deploy
+| Method | Path | Best For |
+|--------|------|----------|
+| **Azure Bicep** (recommended) | [`deployers/bicep/`](./deployers/bicep/README.md) | Azure Public & Government, full IaC |
+| **Terraform** | [`deployers/terraform/`](./deployers/terraform/) | Azure Government optimized |
+| **Docker** | [`application/single_app/Dockerfile`](./application/single_app/Dockerfile) | Local dev, custom hosting |
 
-[Detailed deployment Guide](./deployers/bicep/README.md)
-
-### Pre-Configuration:
-
-The following procedure must be completed with a user that has permissions to create an application registration in the users Entra tenant. 
-
-#### Create the application registration:
+### Deploy with Azure Developer CLI
 
 ```powershell
-cd ./deployers
+# 1. Create Entra app registration
+cd deployers
+.\Initialize-EntraApplication.ps1 -AppName "<name>" -Environment "<env>" -AppRolesJsonPath "./azurecli/appRegistrationRoles.json"
 ```
 
-Define your application name and your environment:
-
-```
-appName = 
-```
-
-```
-environment = 
-```
-
-The following script will create an Entra Enterprise Application, with an App Registration named *\<appName\>*-*\<environment\>*-ar for the web service called *\<appName\>*-*\<environment\>*-app.  
-
-> [!TIP]
->
-> The web service name may be overriden with the `-AppServceName` parameter. 
-
-> [!TIP]
->
-> A different expiration date for the secret which defaults to 180 days with the `-SecretExpirationDays` parameter.
+> [!IMPORTANT]
+> Save the output (Client ID, Tenant ID, Client Secret) — it won't be shown again.
 
 ```powershell
-.\Initialize-EntraApplication.ps1 -AppName "<appName>" -Environment "<environment>"  -AppRolesJsonPath "./azurecli/appRegistrationRoles.json"
+# 2. Configure AZD
+azd config set cloud.name AzureCloud   # or AzureUSGovernment
+azd auth login
+azd env new <environment>
+azd env select <environment>
+
+# 3. Deploy everything
+azd up
 ```
+
+Post-deployment steps:
+
+- [ ] Grant admin consent for API permissions in Azure Portal
+- [ ] Assign users/groups to the Enterprise Application with app roles
+- [ ] Store the client secret in Azure Key Vault
+- [ ] Log in as Admin and configure features via Admin Settings UI
 
 > [!NOTE]
->
-> Be sure to save this information as it will not be available after the window is closed.*
-
-```========================================
-App Registration Created Successfully!
-Application Name:       <registered application name>
-Client ID:              <clientID>
-Tenant ID:              <tenantID>
-Service Principal ID:   <servicePrincipalId>
-Client Secret:          <clientSecret>
-Secret Expiration:      <yyyy-mm-dd>
-```
-
-In addition, the script will note additional steps that must be taken for the app registration step to be completed.
-
-1.  Grant Admin Consent for API Permissions:
-
-    - Navigate to Azure Portal > Entra ID > App registrations
-    - Find app: *\<registered application name\>*
-    - Go to API permissions
-    - Click 'Grant admin consent for [Tenant]'
-
-2.  Assign Users/Groups to Enterprise Application:
-    - Navigate to Azure Portal > Entra ID > Enterprise applications
-    - Find app: *\<registered application name\>*
-    - Go to Users and groups
-    - Add user/group assignments with appropriate app roles
-
-3.  Store the Client Secret Securely:
-    - Save the client secret in Azure Key Vault or secure credential store
-    - The secret value is shown above and will not be displayed again
-
-#### Configure AZD Environment
-
-Using the bash terminal in Visual Studio Code
-
-```powershell
-cd ./deployers
-```
-
-If you work with other Azure clouds, you may need to update your cloud like `azd config set cloud.name AzureUSGovernment` - more information here - [Use Azure Developer CLI in sovereign clouds | Microsoft Learn](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/sovereign-clouds)
-
-```powershell
-azd config set cloud.name AzureCloud
-```
-
-This will open a browser window that the user with Owner level permissions to the target subscription will need to authenticate with.
-
-```powershell
-azd auth login
-```
-
-Use the same value for the \<environment\> that was used in the application registration.
-
-```powershell
-azd env new <environment>
-```
-
-Select the new environment
-
-```powershell
-azd env select <environment>
-```
-
-This step will begin the deployment process.  
-
-```powershell
-azd up 
-```
-
-## Architecture
-
-![Architecture](./docs/images/architecture.png)
-
+> For the full deployment guide, see [`deployers/bicep/README.md`](./deployers/bicep/README.md)
 
 ---
 
-## Development
+## 📖 Documentation
 
-### Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start all services |
-| `npm run dev:web` | Start frontend only |
-| `npm run dev:api` | Start backend only |
-| `npm run build` | Build all packages |
-| `npm run db:migrate` | Run migrations |
-| `npm run db:studio` | Open Prisma Studio |
-
-### API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/auth/login` | User login |
-| `POST` | `/api/auth/register` | User registration |
-| `GET` | `/api/users` | List users |
+| Document | Description |
+|----------|-------------|
+| [Full Documentation Site](https://microsoft.github.io/simplechat/) | Comprehensive online docs |
+| [Architecture](./docs/explanation/architecture.md) | System architecture and design |
+| [Admin Configuration](./docs/admin_configuration.md) | Admin Settings UI guide |
+| [Application Workflows](./docs/application_workflows.md) | RAG ingestion and chat workflows |
+| [Application Scaling](./docs/application_scaling.md) | Scaling strategies per service |
+| [Design Principles](./docs/explanation/design_principles.md) | Core design decisions |
+| [Feature Docs](./docs/explanation/features/) | Individual feature documentation |
 
 ---
 
+## 🛠️ Development
 
----
+### Project Structure
 
-## Testing
+```
+simplechat/
+├── 📁 application/
+│   ├── 📁 single_app/          # Main Flask application
+│   │   ├── app.py              # Entry point
+│   │   ├── config.py           # Configuration & feature flags
+│   │   ├── route_*.py          # 40+ route modules
+│   │   ├── functions_*.py      # 30+ business logic modules
+│   │   ├── templates/          # Jinja2 HTML templates
+│   │   ├── static/             # JS, CSS, images
+│   │   ├── Dockerfile          # Multi-stage distroless build
+│   │   └── requirements.txt    # Python dependencies
+│   ├── 📁 external_apps/       # Bulk loader, database seeder
+│   └── 📁 community_customizations/
+├── 📁 deployers/
+│   ├── 📁 bicep/               # Azure Bicep IaC (20+ modules)
+│   └── 📁 terraform/           # Terraform IaC
+├── 📁 docs/                    # Documentation
+├── 📁 functional_tests/        # Test suites
+└── 📄 CLAUDE.md                # AI assistant instructions
+```
+
+### Running Tests
 
 ```bash
-# Run all tests
-npm test
-
-# Run frontend tests
-npm run test:web
-
-# Run backend tests
-npm run test:api
-
-# Run E2E tests
-npm run test:e2e
+cd functional_tests
+python test_<feature_area>.py
 ```
 
 ---
 
-
----
-
-## Deployment
-
-### Docker
-
-```bash
-# Build all images
-docker-compose build
-
-# Start all services
-docker-compose up -d
-```
-
-### Production
-
-```bash
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-```
-
----
-
-
----
-
-## Contributing
+## 🤝 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+
 ---
 
+## 📄 License
+
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-## License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
-
-## Features
-
-- **Chat with AI**: Interact with an AI model based on Azure OpenAI’s GPT and Thinking models.
-- **RAG with Hybrid Search**: Upload documents and perform hybrid searches (vector + keyword), retrieving relevant information from your files to augment AI responses.
-- **Document Management**: Upload, store, and manage multiple versions of documents—personal ("Your Workspace") or group-level ("Group Workspaces").
-- **Group Management**: Create and join groups to share access to group-specific documents, enabling collaboration with Role-Based Access Control (RBAC).
-- **Ephemeral (Single-Convo) Documents**: Upload temporary documents available only during the current chat session, without persistent storage in Azure AI Search.
-- **Conversation Archiving (Optional)**: Retain copies of user conversations—even after deletion from the UI—in a dedicated Cosmos DB container for audit, compliance, or legal requirements.
-- **Content Safety (Optional)**: Integrate Azure AI Content Safety to review every user message *before* it reaches AI models, search indexes, or image generation services. Enforce custom filters and compliance policies, with an optional `SafetyAdmin` role for viewing violations.
-- **Feedback System (Optional)**: Allow users to rate AI responses (thumbs up/down) and provide contextual comments on negative feedback. Includes user and admin dashboards, governed by an optional `FeedbackAdmin` role.
-- **Bing Web Search (Optional)**: Augment AI responses with live Bing search results, providing up-to-date information. Configurable via Admin Settings.
-- **Image Generation (Optional)**: Enable on-demand image creation using Azure OpenAI's DALL-E models, controlled via Admin Settings.
-- **Video Extraction (Optional)**: Utilize Azure Video Indexer to transcribe speech and perform Optical Character Recognition (OCR) on video frames. Segments are timestamp-chunked for precise retrieval and enhanced citations linking back to the video timecode.
-- **Audio Extraction (Optional)**: Leverage Azure Speech Service to transcribe audio files into timestamped text chunks, making audio content searchable and enabling enhanced citations linked to audio timecodes.
-- **Document Classification (Optional)**: Admins define custom classification types and associated colors. Users tag uploaded documents with these labels, which flow through to AI conversations, providing lineage and insight into data sensitivity or type.
-- **Enhanced Citation (Optional)**: Store processed, chunked files in Azure Storage (organized into user- and document-scoped folders). Display interactive citations in the UI—showing page numbers or timestamps—that link directly to the source document preview.
-- **Metadata Extraction (Optional)**: Apply an AI model (configurable GPT model via Admin Settings) to automatically generate keywords, two-sentence summaries, and infer author/date for uploaded documents. Allows manual override for richer search context.
-- **File Processing Logs (Optional)**: Enable verbose logging for all ingestion pipelines (workspaces and ephemeral chat uploads) to aid in debugging, monitoring, and auditing file processing steps.
-- **Redis Cache (Optional)**: Integrate Azure Cache for Redis to provide a distributed, high-performance session store. This enables true horizontal scaling and high availability by decoupling user sessions from individual app instances.
-- **Authentication & RBAC**: Secure access via Azure Active Directory (Entra ID) using MSAL. Supports Managed Identities for Azure service authentication, group-based controls, and custom application roles (`Admin`, `User`, `CreateGroup`, `SafetyAdmin`, `FeedbackAdmin`).
-- **Supported File Types**:
-
-  -   **Text**: `txt`, `md`, `html`, `json`, `xml`, `yaml`, `yml`, `log`
-  -   **Documents**: `pdf`, `doc`, `docm`, `docx`, `pptx`, `xlsx`, `xlsm`, `xls`, `csv`
-  -   **Images**: `jpg`, `jpeg`, `png`, `bmp`, `tiff`, `tif`, `heif`
-  -   **Video**: `mp4`, `mov`, `avi`, `wmv`, `mkv`, `flv`, `mxf`, `gxf`, `ts`, `ps`, `3gp`, `3gpp`, `mpg`, `asf`, `m4v`, `isma`, `ismv`, `dvr-ms`
-  -   **Audio**: `wav`, `m4a`
+<p align="center">
+  Built with Azure AI Services
+  <br>
+  <a href="https://microsoft.github.io/simplechat/">Documentation</a> · <a href="https://github.com/microsoft/simplechat/issues">Issues</a> · <a href="./docs/explanation/features/">Features</a>
+</p>
