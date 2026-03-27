@@ -544,6 +544,46 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
                     chunk=r['chunk_sequence']
                 )
     
+    # --- Post-retrieval enhancements (Phase 1: Search Quality) ---
+    was_reranked = False
+    was_reordered = False
+
+    try:
+        from functions_settings import get_settings
+        settings = get_settings()
+    except Exception:
+        settings = {}
+
+    # Cohere Rerank: reorder results by semantic relevance (if enabled)
+    if settings.get("enable_cohere_rerank", False) and results:
+        try:
+            from functions_reranking import rerank_with_cohere
+            reranked = rerank_with_cohere(
+                query, results, settings,
+                top_n=settings.get("cohere_rerank_top_n", 10)
+            )
+            if reranked:
+                results = reranked
+                was_reranked = True
+        except Exception as e:
+            logger.warning(f"Cohere reranking failed, using original order: {e}")
+
+    # Attention reordering: place best docs at start and end of context (if enabled)
+    if settings.get("enable_attention_reorder", True) and results:
+        try:
+            from functions_reranking import reorder_for_attention
+            results = reorder_for_attention(results)
+            was_reordered = True
+        except Exception as e:
+            logger.warning(f"Attention reordering failed: {e}")
+
+    # Log search quality metrics
+    try:
+        from functions_reranking import log_search_quality_metrics
+        log_search_quality_metrics(query, results, was_reranked, was_reordered)
+    except Exception:
+        pass
+
     # Cache the results before returning (pass scope parameters for correct partition key)
     cache_search_results(
         cache_key,
@@ -553,14 +593,16 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
         active_group_ids=active_group_ids,
         active_public_workspace_id=active_public_workspace_id
     )
-    
+
     debug_print(
         "Search complete - returning results",
         "SEARCH",
         query=query[:40],
-        final_result_count=len(results)
+        final_result_count=len(results),
+        reranked=was_reranked,
+        reordered=was_reordered
     )
-    
+
     return results
 
 def extract_search_results(paged_results, top_n):
@@ -585,6 +627,8 @@ def extract_search_results(paged_results, top_n):
             "chunk_keywords": r["chunk_keywords"],
             "title": r["title"],
             "chunk_summary": r["chunk_summary"],
-            "score": r["@search.score"]
+            "score": r["@search.score"],
+            "reranker_score": r.get("@search.rerankerScore"),
+            "captions": r.get("@search.captions"),
         })
     return extracted

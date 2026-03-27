@@ -321,6 +321,13 @@ def get_settings(use_cosmos=False):
         'default_retention_document_group': 'none',
         'default_retention_conversation_public': 'none',
         'default_retention_document_public': 'none',
+
+        # Search Quality Settings (Phase 1: Advanced RAG)
+        'enable_cohere_rerank': False,
+        'cohere_rerank_endpoint': '',
+        'cohere_rerank_api_key': '',
+        'cohere_rerank_top_n': 10,
+        'enable_attention_reorder': True,
     }
 
     try:

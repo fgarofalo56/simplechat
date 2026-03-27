@@ -53,3 +53,4 @@ aiohttp==3.13.3
 html2text==2025.4.15
 matplotlib==3.10.7
 azure-cognitiveservices-speech==1.47.0
+tiktoken>=0.7.0

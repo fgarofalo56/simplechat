@@ -3949,7 +3949,7 @@ function markFormAsModified() {
  */
 function updateSaveButtonState() {
     if (!saveButton) return;
-    
+
     if (formModified) {
         // Enable button, make it blue, and update text
         saveButton.disabled = false;
@@ -3964,3 +3964,14 @@ function updateSaveButtonState() {
         saveButton.innerHTML = '<i class="bi bi-floppy"></i> Save Settings';
     }
 }
+
+// --- Search Quality: Cohere Reranking Toggle ---
+document.addEventListener('DOMContentLoaded', () => {
+    const cohereToggle = document.getElementById('enable_cohere_rerank');
+    const cohereSettings = document.getElementById('cohere_rerank_settings');
+    if (cohereToggle && cohereSettings) {
+        cohereToggle.addEventListener('change', () => {
+            cohereSettings.style.display = cohereToggle.checked ? 'block' : 'none';
+        });
+    }
+});

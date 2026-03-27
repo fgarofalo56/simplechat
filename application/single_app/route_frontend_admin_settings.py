@@ -906,7 +906,14 @@ def register_route_frontend_admin_settings(app):
                 'classification_banner_text_color': classification_banner_text_color,
 
                 'require_member_of_control_center_admin': require_member_of_control_center_admin,
-                'require_member_of_control_center_dashboard_reader': require_member_of_control_center_dashboard_reader
+                'require_member_of_control_center_dashboard_reader': require_member_of_control_center_dashboard_reader,
+
+                # Search Quality (Phase 1: Advanced RAG)
+                'enable_cohere_rerank': form_data.get('enable_cohere_rerank') == 'on',
+                'cohere_rerank_endpoint': form_data.get('cohere_rerank_endpoint', '').strip(),
+                'cohere_rerank_api_key': form_data.get('cohere_rerank_api_key', '').strip(),
+                'cohere_rerank_top_n': int(form_data.get('cohere_rerank_top_n', 10)),
+                'enable_attention_reorder': form_data.get('enable_attention_reorder') == 'on',
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---

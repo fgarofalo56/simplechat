@@ -546,6 +546,12 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="search-quality-tab" data-bs-toggle="tab" data-bs-target="#search-quality"
+                    type="button" role="tab" aria-controls="search-quality" aria-selected="false">
+                    Search Quality
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="workspaces-tab" data-bs-toggle="tab" data-bs-target="#workspaces" type="button"
                     role="tab" aria-controls="workspaces" aria-selected="false">
                     Workspaces
@@ -3926,7 +3932,70 @@
                     </p>
                 </div>
             </div>
-            
+
+            <div class="tab-pane fade" id="search-quality" role="tabpanel" aria-labelledby="search-quality-tab">
+                <p class="text-muted">
+                    Configure search quality enhancements: Cohere reranking, attention optimization, and retrieval metrics.
+                </p>
+
+                <!-- Cohere Reranking Section -->
+                <div class="card p-3 mb-3" id="cohere-rerank-section">
+                    <h5><i class="bi bi-sort-down-alt me-2"></i>Cohere Reranking</h5>
+                    <p class="text-muted small">
+                        Rerank search results using Cohere Rerank v4 for improved relevance. Requires a deployed Cohere Rerank model on Azure AI Services.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_cohere_rerank" name="enable_cohere_rerank"
+                            {% if settings.enable_cohere_rerank %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_cohere_rerank">Enable Cohere Reranking</label>
+                    </div>
+
+                    <div id="cohere_rerank_settings" {% if not settings.enable_cohere_rerank %}style="display: none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="cohere_rerank_endpoint" class="form-label">Azure AI Services Endpoint</label>
+                            <input type="text" class="form-control" id="cohere_rerank_endpoint" name="cohere_rerank_endpoint"
+                                value="{{ settings.cohere_rerank_endpoint or '' }}"
+                                placeholder="https://your-ai-services.cognitiveservices.azure.com">
+                            <div class="form-text">The base URL of your Azure AI Services account with the Cohere Rerank model deployed.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="cohere_rerank_api_key" class="form-label">API Key</label>
+                            <input type="password" class="form-control" id="cohere_rerank_api_key" name="cohere_rerank_api_key"
+                                value="{{ settings.cohere_rerank_api_key or '' }}"
+                                placeholder="Enter API key">
+                            <div class="form-text">Azure AI Services API key. This value is never exposed to non-admin users.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="cohere_rerank_top_n" class="form-label">Top N Results</label>
+                            <input type="number" class="form-control" id="cohere_rerank_top_n" name="cohere_rerank_top_n"
+                                value="{{ settings.cohere_rerank_top_n or 10 }}" min="1" max="50">
+                            <div class="form-text">Maximum number of results to return after reranking (1-50).</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attention Reordering Section -->
+                <div class="card p-3 mb-3" id="attention-reorder-section">
+                    <h5><i class="bi bi-arrow-left-right me-2"></i>Attention Optimization</h5>
+                    <p class="text-muted small">
+                        Reorder search results to place the most relevant documents at the start and end of the context window,
+                        optimizing for the "lost-in-the-middle" attention pattern in LLMs.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_attention_reorder" name="enable_attention_reorder"
+                            {% if settings.enable_attention_reorder %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_attention_reorder">
+                            Enable Attention Reordering
+                        </label>
+                        <i class="bi bi-info-circle ms-2" data-bs-toggle="tooltip"
+                            title="Low cost, high value. Rearranges document order to match LLM attention patterns. No API calls required."></i>
+                    </div>
+                </div>
+            </div>
 
         </div>
         <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
