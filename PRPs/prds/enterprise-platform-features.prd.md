@@ -276,7 +276,16 @@ Enable non-developer users to build custom AI skills, orchestrate multi-step wor
 | `databricks-sdk` | New | Enhanced Databricks integration |
 | `plotly` or `chart.js` | New | Client-side chart rendering |
 | `azure-mgmt-resource` | New | Resource discovery for Logic Apps |
-| Existing: `azure-cosmos`, `azure-identity`, `azure-storage-blob`, `azure-keyvault-secrets` | Installed | Already in requirements.txt |
+| `databricks-sql-connector` | New | Databricks SQL warehouse DB API 2.0 queries |
+| Existing: `azure-cosmos`, `azure-identity`, `azure-storage-blob`, `azure-keyvault-secrets`, `pyodbc`, `psycopg2-binary`, `PyMySQL`, `msal` | Installed | Already in requirements.txt |
+
+**Authentication Patterns (from research):**
+- **Synapse**: Managed Identity via `DefaultAzureCredential` + `pyodbc` with `Authentication=ActiveDirectoryMsi`
+- **Databricks**: PAT, Service Principal, or Azure AD via `databricks-sdk` unified auth
+- **Logic Apps**: Managed Identity via `azure-mgmt-logic` (ARM scope: `https://management.azure.com/.default`)
+- **PostgreSQL MI**: Token from `DefaultAzureCredential` with scope `https://ossrdbms-aad.database.windows.net/.default` as password
+- **Power BI**: Service principal via `msal` + REST API (scope: `https://analysis.windows.net/powerbi/api/.default`)
+- **ADLS Gen2**: Managed Identity via `azure-storage-file-datalake`
 
 ### Constraints
 - **Frontend**: Bootstrap 5 + vanilla JavaScript (no React/Vue). Workflow designer must work within this constraint.
@@ -459,12 +468,12 @@ Explicitly NOT included in this PRD:
 
 ## 8. Open Questions
 
-1. **Workflow designer library**: Should we use a lightweight JS library (Drawflow, Flowy) or build custom with Bootstrap? Drawflow is 15KB with no dependencies — good fit for our vanilla JS frontend.
-2. **Logic Apps authentication**: Use Managed Identity (simpler) or allow service principal (more flexible)? Recommend Managed Identity as primary with SP fallback.
-3. **Chart library**: Chart.js (200KB, mature, Bootstrap-friendly) vs Plotly.js (3MB, more powerful)? Recommend Chart.js for inline charts, with optional Plotly for dashboard builder.
-4. **Synapse vs Fabric**: Should we also target Microsoft Fabric lakehouses, or focus on Synapse first? Recommend Synapse first since it's more widely deployed in enterprise; add Fabric as a P1.
-5. **Skill execution model**: Should skills run as Semantic Kernel agents (full orchestration) or simple prompt-response? Recommend both: Prompt Skills (simple) and Agent Skills (with tool access).
-6. **Data connection scoping**: Should data connections be global-only (admin manages) or allow per-user connections? Recommend global + group connections managed by admins, with personal connections behind a feature flag.
+1. **Workflow designer library**: **RESOLVED** — Use Sequential Workflow Designer (Tier 1, zero deps, vanilla JS, MIT, CDN) for step-based workflows. Add Drawflow.js (Tier 2) later for full DAG support. React Flow and n8n embed are not viable for our vanilla JS frontend. Logic Apps designer (LogicAppsUX) is a full React monorepo — too complex to embed; use form-based JSON builder instead.
+2. **Logic Apps authentication**: **RESOLVED** — Use Managed Identity via `DefaultAzureCredential` (ARM scope). `azure-mgmt-logic` SDK supports full CRUD, trigger, and monitoring. Support both Consumption (multi-tenant via SDK) and Standard (single-tenant via REST artifacts API).
+3. **Chart library**: **RESOLVED** — Chart.js for inline charts (200KB, Canvas-based, Bootstrap-compatible). Power BI embedding via `powerbi-client` JS SDK for advanced dashboards.
+4. **Synapse vs Fabric**: **RESOLVED** — Synapse first (Phase C). Fabric as Phase D. Note: Azure Synapse Link for Cosmos DB is deprecated for new projects — use Cosmos DB Mirroring for Fabric when targeting Phase D.
+5. **Skill execution model**: **RESOLVED** — Both: Prompt Skills (simple system prompt + model) and Agent Skills (system prompt + SK plugins). Skills stored in Cosmos DB as plugin manifests; `UserSkillPlugin` wraps them as `BasePlugin` subclass for dynamic SK registration.
+6. **Data connection scoping**: **RESOLVED** — Global + group connections admin-managed. Personal connections behind `allow_user_data_connections` feature flag. All secrets in Key Vault via existing `__Secret` field pattern.
 
 ---
 
@@ -584,11 +593,20 @@ BasePlugin (abstract)
 
 | Feature | Library | Size | Notes |
 |---------|---------|------|-------|
-| Workflow Designer | Drawflow.js | 15KB | Vanilla JS, no deps, MIT license |
+| Workflow Designer | Sequential Workflow Designer | 30KB | Vanilla JS/TS, zero deps, MIT, CDN-loadable, step-based |
+| Workflow Designer (DAG) | Drawflow.js | 15KB | Vanilla JS, zero deps, MIT, full DAG support (Tier 2) |
 | Charts | Chart.js | 200KB | Canvas-based, Bootstrap compatible |
-| Dashboard Grid | Muuri or Gridstack.js | 30KB | Drag-and-drop grid layout |
+| Dashboard Grid | Gridstack.js | 30KB | Drag-and-drop grid layout |
 | Code Editor (SQL) | CodeMirror 6 | 150KB | Syntax highlighting for SQL/KQL |
 | Table Rendering | Simple-DataTables | 20KB | Sortable, filterable, paginated |
+| Power BI Embedding | powerbi-client | 100KB | Official Microsoft JS SDK, CDN |
+
+**Workflow Designer Recommendation (from research):**
+- **Tier 1: Sequential Workflow Designer** — zero external deps, pure TypeScript/SVG, CDN-loadable, step-based flows covering 80% of use cases. Best fit for Bootstrap 5 + vanilla JS constraint.
+- **Tier 2: Drawflow.js** — add later for full DAG/branching support if needed.
+- **NOT recommended**: React Flow (requires React), n8n embed (requires n8n server), Logic Apps designer (React monorepo, too complex to embed).
+
+**Logic Apps Designer Note:** The LogicAppsUX open-source React monorepo cannot be practically embedded in our vanilla JS frontend. Instead, build a form-based workflow definition editor that generates Logic Apps Workflow Definition Language JSON via the `azure-mgmt-logic` SDK.
 
 ### D. Data Model: Skill Definition
 
