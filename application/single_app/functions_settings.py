@@ -349,6 +349,17 @@ def get_settings(use_cosmos=False):
         'graph_rag_extraction_model': 'gpt-4o-mini',
         'graph_rag_max_depth': 2,
         'enable_community_detection': False,
+
+        # Context Optimization Settings (Phase 5: Advanced RAG)
+        'enable_context_optimization': False,
+        'context_token_budget': 12000,
+        'search_token_budget_pct': 0.50,
+        'enable_conversation_summarization': False,
+        'enable_multi_query': False,
+        'enable_hyde': False,
+        'enable_mmr': False,
+        'mmr_lambda': 0.7,
+        'enable_contextual_compression': False,
     }
 
     try:

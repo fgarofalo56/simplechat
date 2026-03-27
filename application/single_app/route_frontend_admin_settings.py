@@ -932,6 +932,16 @@ def register_route_frontend_admin_settings(app):
                 'graph_rag_extraction_model': form_data.get('graph_rag_extraction_model', 'gpt-4o-mini').strip(),
                 'graph_rag_max_depth': int(form_data.get('graph_rag_max_depth', 2)),
                 'enable_community_detection': form_data.get('enable_community_detection') == 'on',
+
+                # Context Optimization (Phase 5: Advanced RAG)
+                'enable_context_optimization': form_data.get('enable_context_optimization') == 'on',
+                'context_token_budget': int(form_data.get('context_token_budget', 12000)),
+                'enable_conversation_summarization': form_data.get('enable_conversation_summarization') == 'on',
+                'enable_multi_query': form_data.get('enable_multi_query') == 'on',
+                'enable_hyde': form_data.get('enable_hyde') == 'on',
+                'enable_mmr': form_data.get('enable_mmr') == 'on',
+                'mmr_lambda': float(form_data.get('mmr_lambda', 0.7)),
+                'enable_contextual_compression': form_data.get('enable_contextual_compression') == 'on',
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---

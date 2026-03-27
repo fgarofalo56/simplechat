@@ -188,3 +188,78 @@ def log_search_quality_metrics(query: str, results: list, was_reranked: bool = F
             "unique_sources": unique_files,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# MMR (Maximal Marginal Relevance) diversity filtering (Task 5.6)
+# ---------------------------------------------------------------------------
+
+def mmr_filter(query_embedding: list, documents: list,
+               lambda_param: float = 0.7, k: int = 10) -> list:
+    """Select diverse documents using Maximal Marginal Relevance.
+
+    MMR balances relevance to the query with diversity among selected documents.
+    lambda=0.7 means 70% relevance, 30% diversity.
+
+    Args:
+        query_embedding: The query's embedding vector.
+        documents: List of document dicts with 'embedding' key.
+        lambda_param: Trade-off between relevance and diversity (0-1).
+        k: Number of documents to select.
+
+    Returns:
+        List of k most relevant and diverse documents.
+    """
+    if not documents or not query_embedding:
+        return documents[:k] if documents else []
+
+    import numpy as np
+
+    def cosine_sim(a, b):
+        a = np.array(a, dtype=np.float32)
+        b = np.array(b, dtype=np.float32)
+        dot = np.dot(a, b)
+        norm = np.linalg.norm(a) * np.linalg.norm(b)
+        return dot / norm if norm > 0 else 0.0
+
+    # Filter to only docs that have embeddings
+    docs_with_emb = [d for d in documents if d.get("embedding")]
+    docs_without_emb = [d for d in documents if not d.get("embedding")]
+
+    if not docs_with_emb:
+        return documents[:k]
+
+    selected = []
+    remaining = list(range(len(docs_with_emb)))
+
+    query_emb = np.array(query_embedding, dtype=np.float32)
+
+    for _ in range(min(k, len(docs_with_emb))):
+        best_idx = None
+        best_score = float("-inf")
+
+        for idx in remaining:
+            doc_emb = docs_with_emb[idx]["embedding"]
+            relevance = cosine_sim(query_emb, doc_emb)
+
+            diversity = 0.0
+            if selected:
+                diversity = max(
+                    cosine_sim(doc_emb, docs_with_emb[s]["embedding"])
+                    for s in selected
+                )
+
+            mmr_score = lambda_param * relevance - (1 - lambda_param) * diversity
+
+            if mmr_score > best_score:
+                best_score = mmr_score
+                best_idx = idx
+
+        if best_idx is not None:
+            selected.append(best_idx)
+            remaining.remove(best_idx)
+
+    result = [docs_with_emb[i] for i in selected]
+    # Append docs without embeddings at the end
+    result.extend(docs_without_emb[:max(0, k - len(result))])
+    return result[:k]
