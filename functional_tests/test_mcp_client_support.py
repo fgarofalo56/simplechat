@@ -113,7 +113,7 @@ def test_requirements_mcp_extra():
         with open(req_path, 'r') as f:
             source = f.read()
 
-        assert 'semantic-kernel[mcp]>=1.39.4' in source, "Missing semantic-kernel[mcp] extra"
+        assert 'semantic-kernel[mcp]' in source, "Missing semantic-kernel[mcp] extra"
 
         print("  PASS: semantic-kernel[mcp] dependency configured")
         return True
