@@ -459,6 +459,25 @@ cosmos_approvals_container = cosmos_database.create_container_if_not_exists(
     default_ttl=-1  # TTL disabled by default, enabled per-document for auto-cleanup
 )
 
+# Graph RAG containers (Phase 4: Advanced RAG)
+cosmos_graph_entities_container_name = "graph_entities"
+cosmos_graph_entities_container = cosmos_database.create_container_if_not_exists(
+    id=cosmos_graph_entities_container_name,
+    partition_key=PartitionKey(path="/workspace_id")
+)
+
+cosmos_graph_relationships_container_name = "graph_relationships"
+cosmos_graph_relationships_container = cosmos_database.create_container_if_not_exists(
+    id=cosmos_graph_relationships_container_name,
+    partition_key=PartitionKey(path="/workspace_id")
+)
+
+cosmos_graph_communities_container_name = "graph_communities"
+cosmos_graph_communities_container = cosmos_database.create_container_if_not_exists(
+    id=cosmos_graph_communities_container_name,
+    partition_key=PartitionKey(path="/workspace_id")
+)
+
 def ensure_custom_logo_file_exists(app, settings):
     """
     If custom_logo_base64 or custom_logo_dark_base64 is present in settings, ensure the appropriate

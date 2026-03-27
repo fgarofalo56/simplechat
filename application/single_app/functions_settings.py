@@ -342,6 +342,13 @@ def get_settings(use_cosmos=False):
         'enable_mcp_servers': False,
         'mcp_server_url_allowlist': [],
         'mcp_default_timeout': 30,
+
+        # Graph RAG Settings (Phase 4: Advanced RAG)
+        'enable_graph_rag': False,
+        'graph_rag_entity_types': ['person', 'organization', 'location', 'concept', 'technology', 'document'],
+        'graph_rag_extraction_model': 'gpt-4o-mini',
+        'graph_rag_max_depth': 2,
+        'enable_community_detection': False,
     }
 
     try:

@@ -5680,7 +5680,27 @@ def process_document_upload_background(document_id, user_id, temp_file_path, ori
         update_doc_callback(**final_update_args)
 
         print(f"Document {document_id} ({original_filename}) processed successfully with {total_chunks_saved} chunks saved and {total_embedding_tokens} embedding tokens used.")
-        
+
+        # Graph RAG: extract entities as async background task (Phase 4)
+        try:
+            from functions_settings import get_settings as _get_settings
+            _settings = _get_settings()
+            if _settings and _settings.get("enable_graph_rag", False) and total_chunks_saved > 0:
+                from functions_graph_entities import extract_and_store_entities
+                executor = current_app.extensions.get("executor") if current_app else None
+                if executor:
+                    executor.submit(
+                        extract_and_store_entities,
+                        document_id=document_id,
+                        user_id=user_id,
+                        group_id=group_id,
+                        public_workspace_id=public_workspace_id,
+                        settings=_settings,
+                    )
+                    print(f"Graph RAG entity extraction queued for document {document_id}")
+        except Exception as graph_err:
+            print(f"Graph RAG extraction failed to queue (non-blocking): {graph_err}")
+
         # Log document creation transaction to activity_logs container
         try:
             from functions_activity_logging import log_document_creation_transaction, log_token_usage

@@ -926,6 +926,12 @@ def register_route_frontend_admin_settings(app):
                 # MCP Client (Phase 3: Advanced RAG)
                 'enable_mcp_servers': form_data.get('enable_mcp_servers') == 'on',
                 'mcp_default_timeout': int(form_data.get('mcp_default_timeout', 30)),
+
+                # Graph RAG (Phase 4: Advanced RAG)
+                'enable_graph_rag': form_data.get('enable_graph_rag') == 'on',
+                'graph_rag_extraction_model': form_data.get('graph_rag_extraction_model', 'gpt-4o-mini').strip(),
+                'graph_rag_max_depth': int(form_data.get('graph_rag_max_depth', 2)),
+                'enable_community_detection': form_data.get('enable_community_detection') == 'on',
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---

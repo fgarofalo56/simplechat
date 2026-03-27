@@ -946,6 +946,21 @@ def register_route_backend_chats(app):
                         User: What is the policy on double dipping?
                         Assistant: The policy prohibits entities from using federal funds received through one program to apply for additional funds through another program, commonly known as 'double dipping' (Source: PolicyDocument.pdf, Page: 12)
                         """
+                    # Graph RAG: inject graph context if enabled (Phase 4)
+                    graph_enhanced = False
+                    try:
+                        if settings.get("enable_graph_rag", False):
+                            from functions_graph_rag import graph_enhanced_search
+                            workspace_id = active_public_workspace_id or active_group_id or user_id
+                            _, graph_context = graph_enhanced_search(
+                                message, search_results, workspace_id, settings
+                            )
+                            if graph_context:
+                                system_prompt_search += f"\n\nKnowledge Graph Context:\n{graph_context}"
+                                graph_enhanced = True
+                    except Exception as graph_err:
+                        debug_print(f"Graph RAG context injection failed (non-blocking): {graph_err}")
+
                     # Add this to a temporary list, don't save to DB yet
                     system_messages_for_augmentation.append({
                         'role': 'system',
