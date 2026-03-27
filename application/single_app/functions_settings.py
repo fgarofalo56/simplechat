@@ -328,6 +328,15 @@ def get_settings(use_cosmos=False):
         'cohere_rerank_api_key': '',
         'cohere_rerank_top_n': 10,
         'enable_attention_reorder': True,
+
+        # Web Crawling Settings (Phase 2: Advanced RAG)
+        'enable_web_ingestion': False,
+        'web_crawl_max_depth': 2,
+        'web_crawl_max_pages': 100,
+        'web_crawl_allowed_domains': [],
+        'enable_github_ingestion': False,
+        'github_include_code': False,
+        'github_token': '',
     }
 
     try:

@@ -3974,4 +3974,21 @@ document.addEventListener('DOMContentLoaded', () => {
             cohereSettings.style.display = cohereToggle.checked ? 'block' : 'none';
         });
     }
+
+    // --- Web Crawling: Toggle handlers ---
+    const webToggle = document.getElementById('enable_web_ingestion');
+    const webSettings = document.getElementById('web_ingestion_settings');
+    if (webToggle && webSettings) {
+        webToggle.addEventListener('change', () => {
+            webSettings.style.display = webToggle.checked ? 'block' : 'none';
+        });
+    }
+
+    const githubToggle = document.getElementById('enable_github_ingestion');
+    const githubSettings = document.getElementById('github_ingestion_settings');
+    if (githubToggle && githubSettings) {
+        githubToggle.addEventListener('change', () => {
+            githubSettings.style.display = githubToggle.checked ? 'block' : 'none';
+        });
+    }
 });

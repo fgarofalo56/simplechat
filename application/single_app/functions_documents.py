@@ -1554,6 +1554,11 @@ def save_chunks(page_text_content, page_number, file_name, user_id, document_id,
         else:
             debug_print(f"[SAVE_CHUNKS] No vision analysis found for document {document_id}")
 
+        # Web ingestion metadata (Phase 2: Advanced RAG)
+        source_url = metadata.get('source_url', '') if metadata else ''
+        source_type = metadata.get('source_type', 'file') if metadata else 'file'
+        content_hash = metadata.get('content_hash', '') if metadata else ''
+
         if is_public_workspace:
             chunk_document = {
                 "id": chunk_id,
@@ -1572,7 +1577,10 @@ def save_chunks(page_text_content, page_number, file_name, user_id, document_id,
                 "chunk_sequence": page_number,  # or you can keep an incremental idx
                 "upload_date": current_time,
                 "version": version,
-                "public_workspace_id": public_workspace_id
+                "public_workspace_id": public_workspace_id,
+                "source_url": source_url,
+                "source_type": source_type,
+                "content_hash": content_hash,
             }
         elif is_group:
             # Get shared_group_ids from document metadata for group documents
@@ -1595,12 +1603,15 @@ def save_chunks(page_text_content, page_number, file_name, user_id, document_id,
                 "upload_date": current_time,
                 "version": version,
                 "group_id": group_id,
-                "shared_group_ids": shared_group_ids
+                "shared_group_ids": shared_group_ids,
+                "source_url": source_url,
+                "source_type": source_type,
+                "content_hash": content_hash,
             }
         else:
             # Get shared_user_ids from document metadata for personal documents
             shared_user_ids = metadata.get('shared_user_ids', []) if metadata else []
-            
+
             chunk_document = {
                 "id": chunk_id,
                 "document_id": document_id,
@@ -1619,7 +1630,10 @@ def save_chunks(page_text_content, page_number, file_name, user_id, document_id,
                 "upload_date": current_time,
                 "version": version,
                 "user_id": user_id,
-                "shared_user_ids": shared_user_ids
+                "shared_user_ids": shared_user_ids,
+                "source_url": source_url,
+                "source_type": source_type,
+                "content_hash": content_hash,
             }
     except Exception as e:
         print(f"Error creating chunk document for page {page_number} of document {document_id}: {e}")

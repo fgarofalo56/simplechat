@@ -914,6 +914,14 @@ def register_route_frontend_admin_settings(app):
                 'cohere_rerank_api_key': form_data.get('cohere_rerank_api_key', '').strip(),
                 'cohere_rerank_top_n': int(form_data.get('cohere_rerank_top_n', 10)),
                 'enable_attention_reorder': form_data.get('enable_attention_reorder') == 'on',
+
+                # Web Crawling (Phase 2: Advanced RAG)
+                'enable_web_ingestion': form_data.get('enable_web_ingestion') == 'on',
+                'web_crawl_max_depth': int(form_data.get('web_crawl_max_depth', 2)),
+                'web_crawl_max_pages': int(form_data.get('web_crawl_max_pages', 100)),
+                'enable_github_ingestion': form_data.get('enable_github_ingestion') == 'on',
+                'github_include_code': form_data.get('github_include_code') == 'on',
+                'github_token': form_data.get('github_token', '').strip(),
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---
