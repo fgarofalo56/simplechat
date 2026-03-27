@@ -6,7 +6,7 @@ Flask-WTF==1.2.1
 gunicorn>=23.0.0
 Werkzeug==3.1.5
 requests==2.32.4
-openai>=1.98.0
+openai>=1.98.0,<2.0.0
 docx2txt==0.8
 Markdown==3.3.4
 bleach==6.1.0
@@ -14,7 +14,7 @@ azure-cosmos==4.9.0
 msal==1.31.0
 Flask-Session==0.8.0
 azure-ai-documentintelligence==1.0.2
-numpy==2.1.1
+numpy>=1.26.4,<2.0.0
 scikit-learn==1.5.2
 SciPy==1.15.1
 joblib==1.4.2
@@ -41,7 +41,7 @@ xlrd==2.0.1
 pillow==11.1.0
 ffmpeg-binaries-compat==1.0.1
 ffmpeg-python==0.2.0
-semantic-kernel[mcp]>=1.39.4
+semantic-kernel[mcp]==1.39.4
 redis>=5.0,<6.0
 pyodbc>=4.0.0
 PyMySQL>=1.0.0
@@ -58,5 +58,5 @@ trafilatura>=2.0.0
 ultimate-sitemap-parser>=1.5.0
 PyGithub>=2.0.0
 simhash>=2.1.0
-networkx>=3.0
-graspologic>=3.4
+networkx>=2.8.8
+graspologic>=3.4.1
