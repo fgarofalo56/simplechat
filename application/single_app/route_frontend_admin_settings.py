@@ -922,6 +922,10 @@ def register_route_frontend_admin_settings(app):
                 'enable_github_ingestion': form_data.get('enable_github_ingestion') == 'on',
                 'github_include_code': form_data.get('github_include_code') == 'on',
                 'github_token': form_data.get('github_token', '').strip(),
+
+                # MCP Client (Phase 3: Advanced RAG)
+                'enable_mcp_servers': form_data.get('enable_mcp_servers') == 'on',
+                'mcp_default_timeout': int(form_data.get('mcp_default_timeout', 30)),
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---

@@ -673,6 +673,26 @@ def _load_agent_plugins_original_method(kernel, plugin_manifests, mode_label="gl
                     matched_class = cls
                     break
                     
+            # Special handling for MCP server plugins (Phase 3: Advanced RAG)
+            if normalized_type == normalize('mcp_server') or 'mcpserver' in normalized_type or 'mcp' == normalized_type:
+                if settings.get("enable_mcp_servers", False):
+                    try:
+                        import asyncio
+                        from semantic_kernel_plugins.mcp_plugin_factory import create_mcp_plugin
+                        loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else asyncio.new_event_loop()
+                        plugin = loop.run_until_complete(create_mcp_plugin(manifest, settings))
+                        kernel.add_plugin(plugin)
+                        print(f"[SK Loader] Successfully loaded MCP plugin: {name}")
+                        log_event(f"[SK Loader] Successfully loaded MCP plugin: {name}",
+                                {"plugin_name": name, "mcp_url": manifest.get("mcp_url", "")}, level=logging.INFO)
+                    except Exception as e:
+                        print(f"[SK Loader] Failed to load MCP plugin {name}: {e}")
+                        log_event(f"[SK Loader] Failed to load MCP plugin: {name}: {e}",
+                                {"plugin_name": name, "error": str(e)}, level=logging.ERROR, exceptionTraceback=True)
+                else:
+                    print(f"[SK Loader] MCP servers disabled, skipping plugin: {name}")
+                continue
+
             if matched_class:
                 try:
                     # Special handling for OpenAPI plugins

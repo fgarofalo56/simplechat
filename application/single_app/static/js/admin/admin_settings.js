@@ -3991,4 +3991,13 @@ document.addEventListener('DOMContentLoaded', () => {
             githubSettings.style.display = githubToggle.checked ? 'block' : 'none';
         });
     }
+
+    // --- MCP Servers: Toggle handler ---
+    const mcpToggle = document.getElementById('enable_mcp_servers');
+    const mcpSettings = document.getElementById('mcp_servers_settings');
+    if (mcpToggle && mcpSettings) {
+        mcpToggle.addEventListener('change', () => {
+            mcpSettings.style.display = mcpToggle.checked ? 'block' : 'none';
+        });
+    }
 });

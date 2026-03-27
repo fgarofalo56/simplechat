@@ -558,6 +558,12 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="mcp-servers-tab" data-bs-toggle="tab" data-bs-target="#mcp-servers"
+                    type="button" role="tab" aria-controls="mcp-servers" aria-selected="false">
+                    MCP Servers
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="workspaces-tab" data-bs-toggle="tab" data-bs-target="#workspaces" type="button"
                     role="tab" aria-controls="workspaces" aria-selected="false">
                     Workspaces
@@ -4064,6 +4070,41 @@
                             <input type="password" class="form-control" id="github_token" name="github_token"
                                 value="{{ settings.github_token or '' }}" placeholder="ghp_...">
                             <div class="form-text">Required for private repositories. Public repos can be imported without a token.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="mcp-servers" role="tabpanel" aria-labelledby="mcp-servers-tab">
+                <p class="text-muted">
+                    Configure Model Context Protocol (MCP) server support for Semantic Kernel agents. MCP enables agents to connect to external tool servers.
+                </p>
+
+                <div class="card p-3 mb-3" id="mcp-servers-section">
+                    <h5><i class="bi bi-plug me-2"></i>MCP Server Support</h5>
+                    <p class="text-muted small">
+                        When enabled, agents can connect to external MCP servers to access additional tools.
+                        Configure MCP server connections as actions in the agent configuration.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_mcp_servers" name="enable_mcp_servers"
+                            {% if settings.enable_mcp_servers %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_mcp_servers">Enable MCP Server Connections</label>
+                    </div>
+
+                    <div id="mcp_servers_settings" {% if not settings.enable_mcp_servers %}style="display: none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="mcp_default_timeout" class="form-label">Default Connection Timeout (seconds)</label>
+                            <input type="number" class="form-control" id="mcp_default_timeout" name="mcp_default_timeout"
+                                value="{{ settings.mcp_default_timeout or 30 }}" min="5" max="120">
+                            <div class="form-text">Maximum time to wait for MCP server responses (5-120 seconds).</div>
+                        </div>
+
+                        <div class="alert alert-info small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            To add MCP server connections, create or edit an agent and add an action with type "MCP Server".
+                            The MCP server URL, transport, and authentication will be configured per-action.
                         </div>
                     </div>
                 </div>

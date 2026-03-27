@@ -337,6 +337,11 @@ def get_settings(use_cosmos=False):
         'enable_github_ingestion': False,
         'github_include_code': False,
         'github_token': '',
+
+        # MCP Client Settings (Phase 3: Advanced RAG)
+        'enable_mcp_servers': False,
+        'mcp_server_url_allowlist': [],
+        'mcp_default_timeout': 30,
     }
 
     try:
