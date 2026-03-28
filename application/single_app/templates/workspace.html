@@ -362,6 +362,22 @@
         </button>
       </li>
       {% endif %}
+      {% if settings.enable_skills_builder %}
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="skills-tab-btn"
+          data-bs-toggle="tab"
+          data-bs-target="#skills-tab"
+          type="button"
+          role="tab"
+          aria-controls="skills-tab"
+          aria-selected="false"
+        >
+          Your Skills
+        </button>
+      </li>
+      {% endif %}
     </ul>
 
     <!-- Tab Panes -->
@@ -749,10 +765,204 @@
           </div>
         {% endif %}
       {% endif %}
+
+      <!-- ============= SKILLS TAB ============= -->
+      {% if settings.enable_skills_builder %}
+      <div
+        class="tab-pane fade"
+        id="skills-tab"
+        role="tabpanel"
+        aria-labelledby="skills-tab-btn"
+      >
+        <div class="card p-3 my-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h5 class="mb-0">Your Skills</h5>
+              <small class="text-muted">Create and manage AI skills invocable from chat via /commands</small>
+            </div>
+            <div>
+              <a href="/skills/marketplace" class="btn btn-outline-primary btn-sm me-2">
+                <i class="bi bi-shop"></i> Marketplace
+              </a>
+              <button class="btn btn-success btn-sm" id="create-skill-btn" data-bs-toggle="modal" data-bs-target="#skillBuilderModal">
+                <i class="bi bi-plus-circle"></i> New Skill
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <input type="search" class="form-control" id="skills-search" placeholder="Search your skills...">
+          </div>
+
+          <div id="skills-list-container">
+            <div class="text-center py-4 text-muted" id="skills-loading">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+              Loading skills...
+            </div>
+            <div class="row" id="skills-cards-row">
+              <!-- Populated by JS -->
+            </div>
+            <div class="text-center py-4 d-none" id="skills-empty">
+              <i class="bi bi-lightning" style="font-size: 2rem;"></i>
+              <p class="mt-2">No skills yet. Create your first skill or browse the marketplace.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
     </div>
     <!-- End Tab Content -->
   </div>
   <!--</div>-->
+
+  <!-- Skill Builder Modal -->
+  {% if settings.enable_skills_builder %}
+  <div class="modal fade" id="skillBuilderModal" tabindex="-1" aria-labelledby="skillBuilderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" style="max-width: 85%;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="skillBuilderModalLabel"><i class="bi bi-lightning me-2"></i>Skill Builder</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step Indicator -->
+          <div class="d-flex justify-content-center mb-4">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-primary rounded-pill skill-step-badge active" data-step="1">1</span>
+              <small class="mx-2">Basics</small>
+              <i class="bi bi-chevron-right text-muted mx-1"></i>
+              <span class="badge bg-secondary rounded-pill skill-step-badge" data-step="2">2</span>
+              <small class="mx-2">Prompt</small>
+              <i class="bi bi-chevron-right text-muted mx-1"></i>
+              <span class="badge bg-secondary rounded-pill skill-step-badge" data-step="3">3</span>
+              <small class="mx-2">Settings</small>
+              <i class="bi bi-chevron-right text-muted mx-1"></i>
+              <span class="badge bg-secondary rounded-pill skill-step-badge" data-step="4">4</span>
+              <small class="mx-2">Test</small>
+            </div>
+          </div>
+
+          <!-- Step 1: Basics -->
+          <div id="skill-step-1" class="skill-step">
+            <h6>Skill Information</h6>
+            <div class="mb-3">
+              <label for="skill-display-name" class="form-label">Display Name</label>
+              <input type="text" class="form-control" id="skill-display-name" placeholder="e.g., Summarize Meeting Transcript" maxlength="100">
+            </div>
+            <div class="mb-3">
+              <label for="skill-name" class="form-label">Command Name</label>
+              <div class="input-group">
+                <span class="input-group-text">/</span>
+                <input type="text" class="form-control" id="skill-name" placeholder="summarize-meeting" pattern="[a-z0-9\-]{3,50}">
+              </div>
+              <div class="form-text">Lowercase letters, numbers, and hyphens only. This becomes the /command.</div>
+            </div>
+            <div class="mb-3">
+              <label for="skill-description" class="form-label">Description</label>
+              <textarea class="form-control" id="skill-description" rows="2" placeholder="What does this skill do?" maxlength="500"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="skill-type" class="form-label">Skill Type</label>
+                <select class="form-select" id="skill-type">
+                  <option value="prompt_skill" selected>Prompt Skill (system prompt + model)</option>
+                  <option value="tool_skill">Tool Skill (system prompt + plugins)</option>
+                  <option value="chain_skill">Chain Skill (sequence of skills)</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="skill-category" class="form-label">Category</label>
+                <select class="form-select" id="skill-category">
+                  <option value="productivity">Productivity</option>
+                  <option value="data">Data</option>
+                  <option value="integration">Integration</option>
+                  <option value="analysis">Analysis</option>
+                  <option value="other" selected>Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Prompt Configuration -->
+          <div id="skill-step-2" class="skill-step d-none">
+            <h6>System Prompt</h6>
+            <p class="text-muted small">Define the AI's behavior for this skill. Use <code>{% raw %}{{input}}{% endraw %}</code> as a placeholder for user input.</p>
+            <div class="mb-3">
+              <textarea class="form-control font-monospace" id="skill-system-prompt" rows="10"
+                placeholder="You are an expert at summarizing meeting transcripts. Given a transcript, produce a structured summary with: 1) Key decisions, 2) Action items, 3) Participants mentioned.
+
+Transcript:
+{{input}}"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="skill-trigger-phrases" class="form-label">Trigger Phrases (optional)</label>
+              <input type="text" class="form-control" id="skill-trigger-phrases" placeholder="summarize meeting, meeting summary (comma-separated)">
+              <div class="form-text">Natural language phrases that will suggest this skill in chat.</div>
+            </div>
+          </div>
+
+          <!-- Step 3: Model & Output Settings -->
+          <div id="skill-step-3" class="skill-step d-none">
+            <h6>Model Settings</h6>
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="skill-model" class="form-label">Model</label>
+                <select class="form-select" id="skill-model">
+                  <option value="gpt-4o" selected>GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                </select>
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="skill-temperature" class="form-label">Temperature: <span id="skill-temp-value">0.3</span></label>
+                <input type="range" class="form-range" id="skill-temperature" min="0" max="1" step="0.1" value="0.3">
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="skill-max-tokens" class="form-label">Max Tokens</label>
+                <input type="number" class="form-control" id="skill-max-tokens" value="2000" min="100" max="16000">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label for="skill-output-format" class="form-label">Output Format</label>
+              <select class="form-select" id="skill-output-format">
+                <option value="markdown" selected>Markdown</option>
+                <option value="json">JSON</option>
+                <option value="table">Table</option>
+                <option value="text">Plain Text</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 4: Test -->
+          <div id="skill-step-4" class="skill-step d-none">
+            <h6>Test Your Skill</h6>
+            <div class="mb-3">
+              <label for="skill-test-input" class="form-label">Sample Input</label>
+              <textarea class="form-control" id="skill-test-input" rows="4" placeholder="Enter sample input to test the skill..."></textarea>
+            </div>
+            <button type="button" class="btn btn-primary mb-3" id="skill-test-btn">
+              <i class="bi bi-play-fill me-1"></i>Test Skill
+            </button>
+            <div id="skill-test-result" class="d-none">
+              <label class="form-label">Output</label>
+              <div class="border rounded p-3 bg-light" id="skill-test-output" style="max-height: 300px; overflow-y: auto;">
+              </div>
+              <small class="text-muted" id="skill-test-timing"></small>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="skill-prev-btn" disabled>Previous</button>
+          <button type="button" class="btn btn-primary" id="skill-next-btn">Next</button>
+          <button type="button" class="btn btn-success d-none" id="skill-save-btn">
+            <i class="bi bi-check-lg me-1"></i>Save Skill
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Modal for Creating/Editing Prompts (Keep As Is) -->
   <div
@@ -1368,5 +1578,8 @@
   <script src="{{ url_for('static', filename='js/workspace_sidebar_nav.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-migration.js') }}"></script>
   <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-init.js') }}"></script>
+  {% if settings.enable_skills_builder %}
+  <script src="{{ url_for('static', filename='js/workspace/workspace-skills.js') }}"></script>
+  {% endif %}
 
 {% endblock %}

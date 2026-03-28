@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 def register_route_backend_skills(app):
 
+    @app.route('/skills/marketplace', methods=['GET'])
+    def skills_marketplace_page():
+        """Render the skills marketplace page."""
+        from flask import render_template
+        settings = get_settings()
+        if not settings.get("enable_skills_builder", False):
+            from flask import redirect
+            return redirect("/")
+        from functions_settings import sanitize_settings_for_user
+        public_settings = sanitize_settings_for_user(settings)
+        return render_template('skills_marketplace.html', settings=public_settings)
+
     def _get_user():
         """Get current user from session."""
         user = session.get("user", {})

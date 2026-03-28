@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Skills Marketplace - {{ settings.app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-shop me-2"></i>Skills Marketplace</h2>
+            <p class="text-muted mb-0">Browse and install community-created AI skills</p>
+        </div>
+        <a href="/workspace" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back to Workspace
+        </a>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card p-3 mb-4">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <input type="search" class="form-control" id="marketplace-search" placeholder="Search skills...">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="marketplace-category">
+                    <option value="all">All Categories</option>
+                    <option value="productivity">Productivity</option>
+                    <option value="data">Data</option>
+                    <option value="integration">Integration</option>
+                    <option value="analysis">Analysis</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="marketplace-sort">
+                    <option value="usage_count">Most Popular</option>
+                    <option value="created_at">Newest</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skills Grid -->
+    <div id="marketplace-loading" class="text-center py-5">
+        <div class="spinner-border" role="status"></div>
+        <p class="mt-2 text-muted">Loading marketplace...</p>
+    </div>
+
+    <div class="row" id="marketplace-grid">
+        <!-- Populated by JavaScript -->
+    </div>
+
+    <div class="text-center py-5 d-none" id="marketplace-empty">
+        <i class="bi bi-shop" style="font-size: 3rem; color: #ccc;"></i>
+        <h5 class="mt-3">No skills available yet</h5>
+        <p class="text-muted">Be the first to publish a skill from your workspace!</p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const grid = document.getElementById('marketplace-grid');
+    const loading = document.getElementById('marketplace-loading');
+    const empty = document.getElementById('marketplace-empty');
+    const searchInput = document.getElementById('marketplace-search');
+    const categorySelect = document.getElementById('marketplace-category');
+    const sortSelect = document.getElementById('marketplace-sort');
+
+    async function loadMarketplace() {
+        loading.classList.remove('d-none');
+        grid.innerHTML = '';
+        empty.classList.add('d-none');
+
+        const params = new URLSearchParams();
+        const search = searchInput.value.trim();
+        const category = categorySelect.value;
+        const sort = sortSelect.value;
+
+        if (search) params.set('search', search);
+        if (category !== 'all') params.set('category', category);
+        params.set('sort', sort);
+
+        try {
+            const resp = await fetch(`/api/skills/marketplace?${params}`);
+            const data = await resp.json();
+            loading.classList.add('d-none');
+
+            const skills = data.skills || [];
+            if (skills.length === 0) {
+                empty.classList.remove('d-none');
+                return;
+            }
+
+            skills.forEach(skill => {
+                grid.appendChild(createMarketplaceCard(skill));
+            });
+        } catch (err) {
+            loading.innerHTML = '<div class="alert alert-danger">Failed to load marketplace</div>';
+        }
+    }
+
+    function createMarketplaceCard(skill) {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4 col-xl-3 mb-4';
+
+        const categoryColors = {
+            productivity: 'bg-primary', data: 'bg-info',
+            integration: 'bg-warning', analysis: 'bg-success', other: 'bg-secondary'
+        };
+        const badge = categoryColors[skill.category] || 'bg-secondary';
+        const command = (skill.commands && skill.commands[0]) || ('/' + skill.name);
+        const ratingAvg = skill.rating_avg || 0;
+        const stars = ratingAvg > 0 ? '&#9733;'.repeat(Math.round(ratingAvg)) + ` ${ratingAvg}` : 'No ratings';
+
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h6 class="card-title mb-0">${escapeHtml(skill.display_name)}</h6>
+                        <span class="badge ${badge}">${escapeHtml(skill.category)}</span>
+                    </div>
+                    <p class="card-text text-muted small">${escapeHtml(skill.description || '')}</p>
+                    <div class="mb-2">
+                        <code class="small">${escapeHtml(command)}</code>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <small class="text-muted">
+                            <i class="bi bi-play-circle"></i> ${skill.usage_count || 0} &middot;
+                            <span class="text-warning">${stars}</span>
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">by ${escapeHtml(skill.author_name || 'Unknown')}</small>
+                        <button class="btn btn-sm btn-primary install-btn" data-skill-id="${skill.id}">
+                            <i class="bi bi-download me-1"></i>Install
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        col.querySelector('.install-btn').addEventListener('click', async (e) => {
+            const btn = e.target.closest('.install-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            try {
+                const resp = await fetch(`/api/skills/${skill.id}/install`, { method: 'POST' });
+                if (resp.ok) {
+                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Installed';
+                    btn.classList.replace('btn-primary', 'btn-success');
+                } else {
+                    const data = await resp.json();
+                    alert(data.error || 'Install failed');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-download me-1"></i>Install';
+                }
+            } catch (err) {
+                alert('Install failed: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-download me-1"></i>Install';
+            }
+        });
+
+        return col;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    // Event listeners
+    let debounceTimer;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadMarketplace, 300);
+    });
+    categorySelect.addEventListener('change', loadMarketplace);
+    sortSelect.addEventListener('change', loadMarketplace);
+
+    loadMarketplace();
+})();
+</script>
+{% endblock %}
