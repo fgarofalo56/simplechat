@@ -459,6 +459,19 @@ cosmos_approvals_container = cosmos_database.create_container_if_not_exists(
     default_ttl=-1  # TTL disabled by default, enabled per-document for auto-cleanup
 )
 
+# Skills Builder containers (Phase A: Enterprise Platform)
+cosmos_skills_container_name = "skills"
+cosmos_skills_container = cosmos_database.create_container_if_not_exists(
+    id=cosmos_skills_container_name,
+    partition_key=PartitionKey(path="/workspace_id")
+)
+
+cosmos_skill_executions_container_name = "skill_executions"
+cosmos_skill_executions_container = cosmos_database.create_container_if_not_exists(
+    id=cosmos_skill_executions_container_name,
+    partition_key=PartitionKey(path="/user_id")
+)
+
 # Graph RAG containers (Phase 4: Advanced RAG)
 cosmos_graph_entities_container_name = "graph_entities"
 cosmos_graph_entities_container = cosmos_database.create_container_if_not_exists(

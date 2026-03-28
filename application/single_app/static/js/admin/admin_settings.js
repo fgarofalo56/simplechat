@@ -4000,4 +4000,13 @@ document.addEventListener('DOMContentLoaded', () => {
             mcpSettings.style.display = mcpToggle.checked ? 'block' : 'none';
         });
     }
+
+    // --- Skills Builder: Toggle handler ---
+    const skillsToggle = document.getElementById('enable_skills_builder');
+    const skillsSettings = document.getElementById('skills_builder_settings');
+    if (skillsToggle && skillsSettings) {
+        skillsToggle.addEventListener('change', () => {
+            skillsSettings.style.display = skillsToggle.checked ? 'block' : 'none';
+        });
+    }
 });

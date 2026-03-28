@@ -942,6 +942,13 @@ def register_route_frontend_admin_settings(app):
                 'enable_mmr': form_data.get('enable_mmr') == 'on',
                 'mmr_lambda': float(form_data.get('mmr_lambda', 0.7)),
                 'enable_contextual_compression': form_data.get('enable_contextual_compression') == 'on',
+
+                # Skills Builder (Phase A: Enterprise Platform)
+                'enable_skills_builder': form_data.get('enable_skills_builder') == 'on',
+                'allow_user_skills': form_data.get('allow_user_skills') == 'on',
+                'allow_group_skills': form_data.get('allow_group_skills') == 'on',
+                'skills_require_approval': form_data.get('skills_require_approval') == 'on',
+                'max_skills_per_user': int(form_data.get('max_skills_per_user', 50)),
             }
             
             # --- Prevent Legacy Fields from Being Created/Updated ---

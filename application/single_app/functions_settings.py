@@ -360,6 +360,13 @@ def get_settings(use_cosmos=False):
         'enable_mmr': False,
         'mmr_lambda': 0.7,
         'enable_contextual_compression': False,
+
+        # Skills Builder Settings (Phase A: Enterprise Platform)
+        'enable_skills_builder': False,
+        'allow_user_skills': True,
+        'allow_group_skills': True,
+        'skills_require_approval': True,
+        'max_skills_per_user': 50,
     }
 
     try:

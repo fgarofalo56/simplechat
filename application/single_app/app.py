@@ -56,6 +56,7 @@ from route_backend_chats import *
 from route_backend_conversations import *
 from route_backend_documents import *
 from route_backend_web_ingestion import *
+from route_backend_skills import *
 from route_backend_groups import *
 from route_backend_users import *
 from route_backend_group_documents import *
@@ -593,6 +594,9 @@ register_route_backend_documents(app)
 
 # ------------------- API Web Ingestion Routes -----------
 register_route_backend_web_ingestion(app)
+
+# ------------------- API Skills Routes ------------------
+register_route_backend_skills(app)
 
 # ------------------- API Groups Routes ------------------
 register_route_backend_groups(app)

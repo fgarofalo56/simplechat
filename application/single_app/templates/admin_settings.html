@@ -564,6 +564,12 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="skills-builder-tab" data-bs-toggle="tab" data-bs-target="#skills-builder"
+                    type="button" role="tab" aria-controls="skills-builder" aria-selected="false">
+                    Skills Builder
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="workspaces-tab" data-bs-toggle="tab" data-bs-target="#workspaces" type="button"
                     role="tab" aria-controls="workspaces" aria-selected="false">
                     Workspaces
@@ -4070,6 +4076,56 @@
                             <input type="password" class="form-control" id="github_token" name="github_token"
                                 value="{{ settings.github_token or '' }}" placeholder="ghp_...">
                             <div class="form-text">Required for private repositories. Public repos can be imported without a token.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="skills-builder" role="tabpanel" aria-labelledby="skills-builder-tab">
+                <p class="text-muted">
+                    Configure the Skills Builder — allows users to create, share, and execute reusable AI skills without code.
+                </p>
+
+                <div class="card p-3 mb-3" id="skills-builder-section">
+                    <h5><i class="bi bi-lightning me-2"></i>Skills Builder</h5>
+                    <p class="text-muted small">
+                        When enabled, users can create custom AI skills with prompt templates, tool access, and trigger phrases.
+                        Skills are invocable from chat via /commands.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_skills_builder" name="enable_skills_builder"
+                            {% if settings.enable_skills_builder %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_skills_builder">Enable Skills Builder</label>
+                    </div>
+
+                    <div id="skills_builder_settings" {% if not settings.enable_skills_builder %}style="display: none;"{% endif %}>
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" class="form-check-input" id="allow_user_skills" name="allow_user_skills"
+                                {% if settings.allow_user_skills %}checked{% endif %}>
+                            <label class="form-check-label ms-2" for="allow_user_skills">Allow Personal Skills</label>
+                            <div class="form-text">Users can create skills in their personal workspace.</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" class="form-check-input" id="allow_group_skills" name="allow_group_skills"
+                                {% if settings.allow_group_skills %}checked{% endif %}>
+                            <label class="form-check-label ms-2" for="allow_group_skills">Allow Group Skills</label>
+                            <div class="form-text">Group members can create skills shared within their group.</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" class="form-check-input" id="skills_require_approval" name="skills_require_approval"
+                                {% if settings.skills_require_approval %}checked{% endif %}>
+                            <label class="form-check-label ms-2" for="skills_require_approval">Require Admin Approval for Marketplace</label>
+                            <div class="form-text">Skills must be approved by an admin before appearing in the global marketplace.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="max_skills_per_user" class="form-label">Maximum Skills per User</label>
+                            <input type="number" class="form-control" id="max_skills_per_user" name="max_skills_per_user"
+                                value="{{ settings.max_skills_per_user or 50 }}" min="1" max="500">
+                            <div class="form-text">Maximum number of skills a single user can create (1-500).</div>
                         </div>
                     </div>
                 </div>
