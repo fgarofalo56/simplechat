@@ -140,8 +140,8 @@ def resolve_entity(entity: dict, workspace_id: str, settings: dict) -> str:
             embedding = result[0]
         elif result:
             embedding = result
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to generate embedding for entity '{entity.get('entity_name', 'unknown')}': {e}")
 
     entity_doc = {
         "id": entity_id,

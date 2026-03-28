@@ -172,8 +172,8 @@ def _check_robots_txt(url: str):
         rp.read()
         if not rp.can_fetch("SimpleChat/1.0", url):
             logger.warning(f"robots.txt disallows fetching: {url}")
-    except Exception:
-        pass  # Best effort
+    except Exception as e:
+        logger.warning(f"robots.txt check failed for {url}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +233,8 @@ def _parse_sitemap(sitemap_url: str, max_depth: int = 2, current_depth: int = 0)
         homepage = f"{parsed.scheme}://{parsed.netloc}"
         tree = sitemap_tree_for_homepage(homepage)
         return [page.url for page in tree.all_pages()]
-    except Exception:
+    except Exception as e:
+        logger.warning(f"usp sitemap parsing failed for {sitemap_url}, falling back to XML parsing: {e}")
         # Fallback: basic XML parsing
         try:
             resp = requests.get(sitemap_url, timeout=30, headers={"User-Agent": "SimpleChat/1.0"})
@@ -523,6 +524,6 @@ def process_web_document(document_id: str, user_id: str, url: str,
                 group_id=group_id,
                 public_workspace_id=public_workspace_id,
             )
-        except Exception:
-            pass
+        except Exception as e2:
+            logger.warning(f"Failed to update error status for document {document_id}: {e2}")
         raise

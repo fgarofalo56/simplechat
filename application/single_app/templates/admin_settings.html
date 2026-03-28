@@ -570,6 +570,18 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="graph-rag-tab" data-bs-toggle="tab" data-bs-target="#graph-rag"
+                    type="button" role="tab" aria-controls="graph-rag" aria-selected="false">
+                    Graph RAG
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="context-optimization-tab" data-bs-toggle="tab" data-bs-target="#context-optimization"
+                    type="button" role="tab" aria-controls="context-optimization" aria-selected="false">
+                    Context Optimization
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="workspaces-tab" data-bs-toggle="tab" data-bs-target="#workspaces" type="button"
                     role="tab" aria-controls="workspaces" aria-selected="false">
                     Workspaces
@@ -4077,6 +4089,120 @@
                                 value="{{ settings.github_token or '' }}" placeholder="ghp_...">
                             <div class="form-text">Required for private repositories. Public repos can be imported without a token.</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="graph-rag" role="tabpanel" aria-labelledby="graph-rag-tab">
+                <p class="text-muted">
+                    Configure Graph RAG — knowledge graph extraction, entity resolution, and graph-enhanced search.
+                </p>
+
+                <div class="card p-3 mb-3">
+                    <h5><i class="bi bi-diagram-3 me-2"></i>Knowledge Graph</h5>
+                    <p class="text-muted small">Extract entities and relationships from documents to enable multi-hop reasoning and relationship discovery.</p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_graph_rag" name="enable_graph_rag"
+                            {% if settings.enable_graph_rag %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_graph_rag">Enable Graph RAG</label>
+                    </div>
+
+                    <div id="graph_rag_settings" {% if not settings.enable_graph_rag %}style="display: none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="graph_rag_extraction_model" class="form-label">Entity Extraction Model</label>
+                            <select class="form-select" id="graph_rag_extraction_model" name="graph_rag_extraction_model">
+                                <option value="gpt-4o-mini" {% if settings.graph_rag_extraction_model == 'gpt-4o-mini' %}selected{% endif %}>GPT-4o Mini (faster, cheaper)</option>
+                                <option value="gpt-4o" {% if settings.graph_rag_extraction_model == 'gpt-4o' %}selected{% endif %}>GPT-4o (higher quality)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="graph_rag_max_depth" class="form-label">Graph Traversal Depth</label>
+                            <input type="number" class="form-control" id="graph_rag_max_depth" name="graph_rag_max_depth"
+                                value="{{ settings.graph_rag_max_depth or 2 }}" min="1" max="5">
+                            <div class="form-text">Maximum hops when traversing entity relationships (1-5).</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" class="form-check-input" id="enable_community_detection" name="enable_community_detection"
+                                {% if settings.enable_community_detection %}checked{% endif %}>
+                            <label class="form-check-label ms-2" for="enable_community_detection">Enable Community Detection</label>
+                            <div class="form-text">Run Leiden algorithm to discover topic clusters in the knowledge graph.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="context-optimization" role="tabpanel" aria-labelledby="context-optimization-tab">
+                <p class="text-muted">
+                    Configure context window optimization — token budgeting, conversation summarization, and advanced retrieval techniques.
+                </p>
+
+                <div class="card p-3 mb-3">
+                    <h5><i class="bi bi-sliders me-2"></i>Token Budget Management</h5>
+                    <p class="text-muted small">Optimize how the context window is allocated across search results, conversation history, and summaries.</p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_context_optimization" name="enable_context_optimization"
+                            {% if settings.enable_context_optimization %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_context_optimization">Enable Context Optimization</label>
+                    </div>
+
+                    <div id="context_optimization_settings" {% if not settings.enable_context_optimization %}style="display: none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="context_token_budget" class="form-label">Token Budget</label>
+                            <input type="number" class="form-control" id="context_token_budget" name="context_token_budget"
+                                value="{{ settings.context_token_budget or 12000 }}" min="2000" max="128000">
+                            <div class="form-text">Maximum tokens allocated for context (search results + history + summary).</div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input type="checkbox" class="form-check-input" id="enable_conversation_summarization" name="enable_conversation_summarization"
+                                {% if settings.enable_conversation_summarization %}checked{% endif %}>
+                            <label class="form-check-label ms-2" for="enable_conversation_summarization">Enable Conversation Summarization</label>
+                            <div class="form-text">Summarize older conversation turns to free up context space.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-3 mb-3">
+                    <h5><i class="bi bi-search me-2"></i>Advanced Retrieval</h5>
+                    <p class="text-muted small">Enable advanced search techniques for better retrieval quality.</p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_multi_query" name="enable_multi_query"
+                            {% if settings.enable_multi_query %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_multi_query">Multi-Query Retrieval</label>
+                        <div class="form-text">Generate query variations for broader document retrieval.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_hyde" name="enable_hyde"
+                            {% if settings.enable_hyde %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_hyde">HyDE (Hypothetical Document Embeddings)</label>
+                        <div class="form-text">Generate hypothetical answer documents for improved vector search.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_mmr" name="enable_mmr"
+                            {% if settings.enable_mmr %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_mmr">MMR Diversity Filtering</label>
+                        <div class="form-text">Reduce redundancy in search results using Maximal Marginal Relevance.</div>
+                    </div>
+
+                    <div class="mb-3" id="mmr_lambda_container" {% if not settings.enable_mmr %}style="display: none;"{% endif %}>
+                        <label for="mmr_lambda" class="form-label">MMR Lambda (relevance vs diversity): {{ settings.mmr_lambda or 0.7 }}</label>
+                        <input type="range" class="form-range" id="mmr_lambda" name="mmr_lambda"
+                            min="0" max="1" step="0.1" value="{{ settings.mmr_lambda or 0.7 }}">
+                        <div class="form-text">0 = maximum diversity, 1 = maximum relevance. Default: 0.7.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_contextual_compression" name="enable_contextual_compression"
+                            {% if settings.enable_contextual_compression %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_contextual_compression">Contextual Compression</label>
+                        <div class="form-text">Extract only relevant sentences from each search result. Uses additional GPT calls (cost increases).</div>
                     </div>
                 </div>
             </div>

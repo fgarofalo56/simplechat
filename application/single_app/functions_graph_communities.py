@@ -111,8 +111,8 @@ def detect_communities(workspace_id: str, settings: dict) -> list:
                 )
                 entity["community_id"] = community_id
                 cosmos_graph_entities_container.upsert_item(entity)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to assign community {community_id} to entity {eid}: {e}")
 
         # Get entity names for the community
         member_entities = [e for e in entities if e["id"] in member_ids]
@@ -155,7 +155,8 @@ def generate_community_summary(community_id: str, workspace_id: str,
         community = cosmos_graph_communities_container.read_item(
             item=community_id, partition_key=workspace_id
         )
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to read community {community_id} for summary generation: {e}")
         return None
 
     entity_ids = community.get("entity_ids", [])
@@ -166,8 +167,8 @@ def generate_community_summary(community_id: str, workspace_id: str,
                 item=eid, partition_key=workspace_id
             )
             entities.append(entity)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to read entity {eid} for community summary: {e}")
 
     if not entities:
         return community

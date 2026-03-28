@@ -4009,4 +4009,31 @@ document.addEventListener('DOMContentLoaded', () => {
             skillsSettings.style.display = skillsToggle.checked ? 'block' : 'none';
         });
     }
+
+    // --- Graph RAG: Toggle handler ---
+    const graphToggle = document.getElementById('enable_graph_rag');
+    const graphSettings = document.getElementById('graph_rag_settings');
+    if (graphToggle && graphSettings) {
+        graphToggle.addEventListener('change', () => {
+            graphSettings.style.display = graphToggle.checked ? 'block' : 'none';
+        });
+    }
+
+    // --- Context Optimization: Toggle handler ---
+    const ctxToggle = document.getElementById('enable_context_optimization');
+    const ctxSettings = document.getElementById('context_optimization_settings');
+    if (ctxToggle && ctxSettings) {
+        ctxToggle.addEventListener('change', () => {
+            ctxSettings.style.display = ctxToggle.checked ? 'block' : 'none';
+        });
+    }
+
+    // --- MMR: Toggle handler ---
+    const mmrToggle = document.getElementById('enable_mmr');
+    const mmrContainer = document.getElementById('mmr_lambda_container');
+    if (mmrToggle && mmrContainer) {
+        mmrToggle.addEventListener('change', () => {
+            mmrContainer.style.display = mmrToggle.checked ? 'block' : 'none';
+        });
+    }
 });

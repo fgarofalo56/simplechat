@@ -144,8 +144,8 @@ def get_entity_neighborhood(entity_id: str, workspace_id: str,
                             item=neighbor_id, partition_key=workspace_id
                         )
                         all_neighbors.append(neighbor)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch neighbor entity {neighbor_id}: {e}")
 
         current_ids = next_ids
 
@@ -168,7 +168,8 @@ def _get_relationships_for_entity(entity_id: str, workspace_id: str) -> list:
         return list(cosmos_graph_relationships_container.query_items(
             query=query, parameters=params, partition_key=workspace_id
         ))
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to query relationships for entity {entity_id}: {e}")
         return []
 
 
@@ -222,7 +223,8 @@ def get_community_summary(community_id: str, workspace_id: str) -> dict:
         return cosmos_graph_communities_container.read_item(
             item=community_id, partition_key=workspace_id
         )
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to read community summary {community_id}: {e}")
         return None
 
 

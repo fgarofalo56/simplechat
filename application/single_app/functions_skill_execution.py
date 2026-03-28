@@ -185,8 +185,8 @@ def _increment_usage(skill: dict):
         from config import cosmos_skills_container
         skill["usage_count"] = skill.get("usage_count", 0) + 1
         cosmos_skills_container.upsert_item(skill)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to increment usage count for skill {skill.get('id', 'unknown')}: {e}")
 
 
 def handle_skill_command(message: str, user_id: str, settings: dict,

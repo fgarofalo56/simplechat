@@ -4,7 +4,7 @@ import logging
 from flask import request, jsonify, session
 
 from swagger_wrapper import swagger_route, get_auth_security
-from functions_authentication import login_required, user_required
+from functions_authentication import login_required, user_required, admin_required
 from functions_settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -363,7 +363,7 @@ def register_route_backend_skills(app):
     @app.route('/api/admin/skills/pending', methods=['GET'])
     @swagger_route(security=get_auth_security())
     @login_required
-    @user_required
+    @admin_required
     def api_pending_skills():
         """List skills pending approval (admin only)."""
         user_id, _ = _get_user()
@@ -376,7 +376,7 @@ def register_route_backend_skills(app):
     @app.route('/api/admin/skills/<skill_id>/approve', methods=['POST'])
     @swagger_route(security=get_auth_security())
     @login_required
-    @user_required
+    @admin_required
     def api_approve_skill(skill_id):
         """Approve a pending skill (admin only)."""
         user_id, _ = _get_user()
@@ -399,7 +399,7 @@ def register_route_backend_skills(app):
     @app.route('/api/admin/skills/<skill_id>/reject', methods=['POST'])
     @swagger_route(security=get_auth_security())
     @login_required
-    @user_required
+    @admin_required
     def api_reject_skill(skill_id):
         """Reject a pending skill (admin only)."""
         user_id, _ = _get_user()

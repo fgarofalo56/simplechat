@@ -121,7 +121,8 @@ def get_skill(skill_id: str, workspace_id: str) -> dict:
     """Get a skill by ID."""
     try:
         return cosmos_skills_container.read_item(item=skill_id, partition_key=workspace_id)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Failed to read skill {skill_id} in workspace {workspace_id}: {e}")
         return None
 
 
@@ -277,7 +278,8 @@ def publish_skill(skill_id: str, workspace_id: str, require_approval: bool = Tru
         skill["workspace_id"] = "global"
         try:
             cosmos_skills_container.create_item(body=skill)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Global skill copy already exists for {skill_id}, upserting instead: {e}")
             cosmos_skills_container.upsert_item(skill)
 
     _log_event("skill_published", extra={"skill_id": skill_id,
@@ -313,7 +315,8 @@ def approve_skill(skill_id: str, admin_user_id: str, notes: str = "") -> dict:
     global_skill["workspace_id"] = "global"
     try:
         cosmos_skills_container.create_item(body=global_skill)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Global skill copy already exists for {skill_id}, upserting instead: {e}")
         cosmos_skills_container.upsert_item(global_skill)
 
     _log_event("skill_approved", extra={"skill_id": skill_id, "approved_by": admin_user_id})

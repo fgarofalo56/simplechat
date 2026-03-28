@@ -95,8 +95,8 @@ def test_all_routes_have_auth_decorators():
                 block = match.group()
                 if '@login_required' not in block:
                     issues.append(f"{fname}: {route} missing @login_required")
-                if '@user_required' not in block:
-                    issues.append(f"{fname}: {route} missing @user_required")
+                if '@user_required' not in block and '@admin_required' not in block:
+                    issues.append(f"{fname}: {route} missing @user_required or @admin_required")
 
     if issues:
         for issue in issues[:5]:
