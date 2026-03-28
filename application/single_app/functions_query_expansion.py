@@ -5,6 +5,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _log_event(message, level=logging.INFO, extra=None):
+    try:
+        from functions_appinsights import log_event
+        log_event(message, level=level, extra=extra)
+    except ImportError:
+        logger.log(level, message)
+
+
 def generate_query_variations(query: str, gpt_client, gpt_model: str,
                               n: int = 3) -> list:
     """Generate N query variations for broader retrieval.
@@ -41,10 +49,11 @@ def generate_query_variations(query: str, gpt_client, gpt_model: str,
             if cleaned and len(cleaned) > 10:
                 queries.append(cleaned)
 
+        _log_event("multi_query_generated", extra={"original": query[:100], "variations": len(queries) - 1})
         return queries[:n + 1]
 
     except Exception as e:
-        logger.error(f"Query variation generation failed: {e}")
+        _log_event("multi_query_error", level=logging.ERROR, extra={"error": str(e)})
         return [query]
 
 
@@ -78,7 +87,7 @@ def hyde_generate(query: str, gpt_client, gpt_model: str) -> str:
         return response.choices[0].message.content.strip()
 
     except Exception as e:
-        logger.error(f"HyDE generation failed: {e}")
+        _log_event("hyde_generation_error", level=logging.ERROR, extra={"error": str(e)})
         return ""
 
 
@@ -119,5 +128,5 @@ def compress_chunk(query: str, chunk_text: str, gpt_client, gpt_model: str) -> s
         return result
 
     except Exception as e:
-        logger.error(f"Contextual compression failed: {e}")
+        _log_event("contextual_compression_error", level=logging.ERROR, extra={"error": str(e)})
         return chunk_text

@@ -12,6 +12,14 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+def _log_event(message, level=logging.INFO, extra=None):
+    try:
+        from functions_appinsights import log_event
+        log_event(message, level=level, extra=extra)
+    except ImportError:
+        logger.log(level, message)
+
+
 # ---------------------------------------------------------------------------
 # Query routing
 # ---------------------------------------------------------------------------
@@ -234,7 +242,13 @@ def graph_enhanced_search(query: str, vector_results: list,
     # Detect entities in query
     query_entities = detect_query_entities(query, workspace_id)
     if not query_entities:
+        _log_event("graph_search_no_entities", extra={"query_length": len(query), "workspace_id": workspace_id})
         return vector_results, ""
+
+    _log_event("graph_search_entities_detected", extra={
+        "query_length": len(query), "entity_count": len(query_entities),
+        "entities": [e.get("entity_name") for e in query_entities[:5]], "workspace_id": workspace_id,
+    })
 
     graph_context = []
 

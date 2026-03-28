@@ -10,6 +10,14 @@ from functions_settings import get_settings
 logger = logging.getLogger(__name__)
 
 
+def _log(message, level=logging.INFO, extra=None):
+    try:
+        from functions_appinsights import log_event
+        log_event(message, level=level, extra=extra)
+    except ImportError:
+        logger.log(level, message)
+
+
 def register_route_backend_skills(app):
 
     @app.route('/skills/marketplace', methods=['GET'])
@@ -67,11 +75,16 @@ def register_route_backend_skills(app):
         try:
             from functions_skills import create_skill
             skill = create_skill(user_id, user_name, data)
+            _log("skill_api_create", extra={"skill_id": skill["id"], "name": skill["name"],
+                 "type": skill["type"], "scope": scope, "user_id": user_id})
             return jsonify(skill), 201
         except ValueError as e:
+            _log("skill_api_create_validation_error", level=logging.WARNING,
+                 extra={"error": str(e), "user_id": user_id})
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Failed to create skill: {e}")
+            _log("skill_api_create_error", level=logging.ERROR,
+                 extra={"error": str(e), "user_id": user_id})
             return jsonify({"error": "Failed to create skill"}), 500
 
     @app.route('/api/skills', methods=['GET'])
@@ -146,11 +159,15 @@ def register_route_backend_skills(app):
                 return jsonify({"error": "Not authorized to edit this skill"}), 403
 
             updated = update_skill(skill_id, workspace_id, data)
+            _log("skill_api_update", extra={"skill_id": skill_id, "user_id": user_id})
             return jsonify(updated), 200
         except ValueError as e:
+            _log("skill_api_update_validation_error", level=logging.WARNING,
+                 extra={"skill_id": skill_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Failed to update skill: {e}")
+            _log("skill_api_update_error", level=logging.ERROR,
+                 extra={"skill_id": skill_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Failed to update skill"}), 500
 
     @app.route('/api/skills/<skill_id>', methods=['DELETE'])
@@ -173,6 +190,7 @@ def register_route_backend_skills(app):
             return jsonify({"error": "Not authorized"}), 403
 
         delete_skill(skill_id, workspace_id)
+        _log("skill_api_delete", extra={"skill_id": skill_id, "user_id": user_id})
         return jsonify({"message": "Skill deleted"}), 200
 
     # ------------------------------------------------------------------
@@ -205,11 +223,20 @@ def register_route_backend_skills(app):
             return jsonify({"error": "Skill not found"}), 404
 
         try:
+            import time
             from functions_skill_execution import execute_skill
+            t0 = time.monotonic()
             result = execute_skill(skill, user_input, user_id, settings)
+            duration_ms = round((time.monotonic() - t0) * 1000)
+            _log("skill_api_execute", extra={
+                "skill_id": skill_id,
+                "user_id": user_id,
+                "duration_ms": duration_ms,
+            })
             return jsonify(result), 200
         except Exception as e:
-            logger.error(f"Skill execution failed: {e}")
+            _log("skill_api_execute_error", level=logging.ERROR,
+                 extra={"skill_id": skill_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": f"Execution failed: {str(e)}"}), 500
 
     @app.route('/api/skills/<skill_id>/executions', methods=['GET'])
@@ -278,8 +305,15 @@ def register_route_backend_skills(app):
 
             updated = publish_skill(skill_id, workspace_id, require_approval)
             status_msg = "Submitted for approval" if require_approval else "Published to marketplace"
+            _log("skill_api_publish", extra={
+                "skill_id": skill_id,
+                "require_approval": require_approval,
+                "user_id": user_id,
+            })
             return jsonify({"message": status_msg, "skill": updated}), 200
         except ValueError as e:
+            _log("skill_api_publish_validation_error", level=logging.WARNING,
+                 extra={"skill_id": skill_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 400
 
     @app.route('/api/skills/<skill_id>/install', methods=['POST'])
@@ -295,8 +329,11 @@ def register_route_backend_skills(app):
         try:
             from functions_skills import install_skill
             install_skill(skill_id, user_id)
+            _log("skill_api_install", extra={"skill_id": skill_id, "user_id": user_id})
             return jsonify({"message": "Skill installed"}), 200
         except ValueError as e:
+            _log("skill_api_install_validation_error", level=logging.WARNING,
+                 extra={"skill_id": skill_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 400
 
     @app.route('/api/skills/<skill_id>/rate', methods=['POST'])
@@ -352,8 +389,11 @@ def register_route_backend_skills(app):
         try:
             from functions_skills import approve_skill
             skill = approve_skill(skill_id, user_id, notes)
+            _log("skill_api_approve", extra={"skill_id": skill_id, "admin_user_id": user_id})
             return jsonify({"message": "Skill approved", "skill": skill}), 200
         except ValueError as e:
+            _log("skill_api_approve_validation_error", level=logging.WARNING,
+                 extra={"skill_id": skill_id, "admin_user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 400
 
     @app.route('/api/admin/skills/<skill_id>/reject', methods=['POST'])
@@ -372,6 +412,9 @@ def register_route_backend_skills(app):
         try:
             from functions_skills import reject_skill
             skill = reject_skill(skill_id, user_id, reason)
+            _log("skill_api_reject", extra={"skill_id": skill_id, "admin_user_id": user_id})
             return jsonify({"message": "Skill rejected", "skill": skill}), 200
         except ValueError as e:
+            _log("skill_api_reject_validation_error", level=logging.WARNING,
+                 extra={"skill_id": skill_id, "admin_user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 400

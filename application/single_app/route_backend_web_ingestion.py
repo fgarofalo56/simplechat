@@ -13,6 +13,14 @@ from functions_settings import get_settings, enabled_required
 logger = logging.getLogger(__name__)
 
 
+def _log(message, level=logging.INFO, extra=None):
+    try:
+        from functions_appinsights import log_event
+        log_event(message, level=level, extra=extra)
+    except ImportError:
+        logger.log(level, message)
+
+
 def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/url', methods=['POST'])
@@ -72,7 +80,8 @@ def register_route_backend_web_ingestion(app):
                 public_workspace_id=public_workspace_id,
             )
         except Exception as e:
-            logger.error(f"Failed to create document for URL ingestion: {e}")
+            _log("web_ingestion_create_document_error", level=logging.ERROR,
+                 extra={"url": url, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Failed to create document record"}), 500
 
         # Submit background task
@@ -102,9 +111,15 @@ def register_route_backend_web_ingestion(app):
                     public_workspace_id=public_workspace_id,
                 )
         except Exception as e:
-            logger.error(f"Failed to submit web ingestion task: {e}")
+            _log("web_ingestion_submit_task_error", level=logging.ERROR,
+                 extra={"url": url, "document_id": document_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Failed to start processing"}), 500
 
+        _log("web_ingestion_ingest_url", extra={
+            "url": url,
+            "document_id": document_id,
+            "user_id": user_id,
+        })
         return jsonify({
             "message": "URL queued for ingestion",
             "document_id": document_id,
@@ -166,7 +181,8 @@ def register_route_backend_web_ingestion(app):
             from config import cosmos_settings_container
             cosmos_settings_container.upsert_item(crawl_job)
         except Exception as e:
-            logger.error(f"Failed to create crawl job: {e}")
+            _log("web_ingestion_create_crawl_job_error", level=logging.ERROR,
+                 extra={"sitemap_url": sitemap_url, "job_id": job_id, "user_id": user_id, "error": str(e)})
 
         # Submit background crawl task
         try:
@@ -184,9 +200,16 @@ def register_route_backend_web_ingestion(app):
                     public_workspace_id=public_workspace_id,
                 )
         except Exception as e:
-            logger.error(f"Failed to submit crawl task: {e}")
+            _log("web_ingestion_submit_crawl_error", level=logging.ERROR,
+                 extra={"sitemap_url": sitemap_url, "job_id": job_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Failed to start crawl"}), 500
 
+        _log("web_ingestion_crawl_sitemap", extra={
+            "sitemap_url": sitemap_url,
+            "job_id": job_id,
+            "max_pages": max_pages,
+            "user_id": user_id,
+        })
         return jsonify({
             "message": "Sitemap crawl queued",
             "job_id": job_id,
@@ -243,7 +266,8 @@ def register_route_backend_web_ingestion(app):
             from config import cosmos_settings_container
             cosmos_settings_container.upsert_item(crawl_job)
         except Exception as e:
-            logger.error(f"Failed to create crawl job: {e}")
+            _log("web_ingestion_create_github_job_error", level=logging.ERROR,
+                 extra={"repo_url": repo_url, "job_id": job_id, "user_id": user_id, "error": str(e)})
 
         # Submit background task
         try:
@@ -261,9 +285,15 @@ def register_route_backend_web_ingestion(app):
                     public_workspace_id=public_workspace_id,
                 )
         except Exception as e:
-            logger.error(f"Failed to submit GitHub import: {e}")
+            _log("web_ingestion_submit_github_error", level=logging.ERROR,
+                 extra={"repo_url": repo_url, "job_id": job_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Failed to start import"}), 500
 
+        _log("web_ingestion_import_github", extra={
+            "repo_url": repo_url,
+            "job_id": job_id,
+            "user_id": user_id,
+        })
         return jsonify({
             "message": "GitHub import queued",
             "job_id": job_id,
@@ -287,6 +317,7 @@ def register_route_backend_web_ingestion(app):
             if job.get("user_id") != user_id:
                 return jsonify({"error": "Not authorized"}), 403
 
+            _log("web_ingestion_crawl_status", extra={"job_id": job_id, "user_id": user_id})
             return jsonify({
                 "job_id": job["id"],
                 "status": job.get("status", "unknown"),
@@ -300,7 +331,9 @@ def register_route_backend_web_ingestion(app):
                 "created_at": job.get("created_at"),
                 "completed_at": job.get("completed_at"),
             }), 200
-        except Exception:
+        except Exception as e:
+            _log("web_ingestion_crawl_status_error", level=logging.ERROR,
+                 extra={"job_id": job_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": "Job not found"}), 404
 
     @app.route('/api/workspace/documents/url/<document_id>/recrawl', methods=['POST'])
@@ -343,6 +376,11 @@ def register_route_backend_web_ingestion(app):
                     settings=settings,
                 )
 
+            _log("web_ingestion_recrawl_url", extra={
+                "document_id": document_id,
+                "source_url": source_url,
+                "user_id": user_id,
+            })
             return jsonify({
                 "message": "Re-crawl started",
                 "document_id": document_id,
@@ -350,6 +388,8 @@ def register_route_backend_web_ingestion(app):
             }), 200
 
         except Exception as e:
+            _log("web_ingestion_recrawl_url_error", level=logging.ERROR,
+                 extra={"document_id": document_id, "user_id": user_id, "error": str(e)})
             return jsonify({"error": str(e)}), 500
 
 

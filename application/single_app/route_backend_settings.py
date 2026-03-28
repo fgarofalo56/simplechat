@@ -108,6 +108,57 @@ def auto_fix_index_fields(idx_type: str, user_id: str = 'system', admin_email: s
 
 
 def register_route_backend_settings(app):
+
+    @app.route('/api/telemetry/frontend-error', methods=['POST'])
+    @swagger_route(security=get_auth_security())
+    def api_frontend_error():
+        """Log frontend JavaScript errors to Application Insights."""
+        try:
+            data = request.get_json(force=True) or {}
+            message = data.get("message", "Unknown frontend error")
+            source = data.get("source", "unknown")
+            stack = data.get("stack", "")
+            url = data.get("url", "")
+            user_agent = request.headers.get("User-Agent", "")
+
+            user = session.get("user", {})
+            user_id = user.get("oid", "anonymous")
+
+            from functions_appinsights import log_event
+            log_event(
+                f"frontend_error: {message}",
+                level=logging.ERROR,
+                extra={
+                    "source": source,
+                    "stack": stack[:1000],
+                    "url": url,
+                    "user_id": user_id,
+                    "user_agent": user_agent[:200],
+                }
+            )
+            return jsonify({"status": "logged"}), 200
+        except Exception:
+            return jsonify({"status": "ok"}), 200
+
+    @app.route('/api/telemetry/frontend-event', methods=['POST'])
+    @swagger_route(security=get_auth_security())
+    def api_frontend_event():
+        """Log frontend telemetry events to Application Insights."""
+        try:
+            data = request.get_json(force=True) or {}
+            event_name = data.get("event", "unknown_event")
+            properties = data.get("properties", {})
+
+            user = session.get("user", {})
+            user_id = user.get("oid", "anonymous")
+            properties["user_id"] = user_id
+
+            from functions_appinsights import log_event
+            log_event(f"frontend_{event_name}", extra=properties)
+            return jsonify({"status": "logged"}), 200
+        except Exception:
+            return jsonify({"status": "ok"}), 200
+
     @app.route('/api/admin/settings/check_index_fields', methods=['POST'])
     @swagger_route(security=get_auth_security())
     @login_required

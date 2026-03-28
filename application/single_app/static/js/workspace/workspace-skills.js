@@ -53,6 +53,7 @@
             });
         } catch (err) {
             console.error('Failed to load skills:', err);
+            if (window.scTelemetry) window.scTelemetry.logError('Failed to load skills: ' + err.message, 'workspace-skills');
             if (skillsLoading) skillsLoading.innerHTML = '<div class="alert alert-danger">Failed to load skills</div>';
         }
     }

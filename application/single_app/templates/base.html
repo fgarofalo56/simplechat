@@ -391,6 +391,8 @@
     </div>
   </div>
   {% endif %}
+  <!-- Frontend Telemetry (logs errors + events to Application Insights) -->
+  <script src="{{ url_for('static', filename='js/telemetry.js') }}"></script>
 </body>
 
 </html>
