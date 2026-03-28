@@ -4,6 +4,7 @@ import logging
 from flask import request, jsonify, session
 
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_authentication import login_required, user_required
 from functions_settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_create_skill():
         """Create a new skill."""
         user_id, user_name = _get_user()
@@ -73,6 +76,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_list_skills():
         """List skills for the current user's workspaces."""
         user_id, _ = _get_user()
@@ -99,6 +104,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_get_skill(skill_id):
         """Get skill details."""
         user_id, _ = _get_user()
@@ -119,6 +126,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>', methods=['PUT'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_update_skill(skill_id):
         """Update a skill."""
         user_id, _ = _get_user()
@@ -146,6 +155,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>', methods=['DELETE'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_delete_skill(skill_id):
         """Delete a skill."""
         user_id, _ = _get_user()
@@ -170,6 +181,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>/execute', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_execute_skill(skill_id):
         """Execute a skill with given input."""
         user_id, _ = _get_user()
@@ -201,6 +214,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>/executions', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_skill_executions(skill_id):
         """Get execution history for a skill."""
         user_id, _ = _get_user()
@@ -217,6 +232,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/marketplace', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_skills_marketplace():
         """Browse the skills marketplace."""
         user_id, _ = _get_user()
@@ -239,6 +256,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>/publish', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_publish_skill(skill_id):
         """Publish a skill to the marketplace."""
         user_id, _ = _get_user()
@@ -265,6 +284,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>/install', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_install_skill(skill_id):
         """Install a marketplace skill."""
         user_id, _ = _get_user()
@@ -280,6 +301,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/skills/<skill_id>/rate', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_rate_skill(skill_id):
         """Rate a skill."""
         user_id, _ = _get_user()
@@ -302,6 +325,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/admin/skills/pending', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_pending_skills():
         """List skills pending approval (admin only)."""
         user_id, _ = _get_user()
@@ -313,6 +338,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/admin/skills/<skill_id>/approve', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_approve_skill(skill_id):
         """Approve a pending skill (admin only)."""
         user_id, _ = _get_user()
@@ -331,6 +358,8 @@ def register_route_backend_skills(app):
 
     @app.route('/api/admin/skills/<skill_id>/reject', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_reject_skill(skill_id):
         """Reject a pending skill (admin only)."""
         user_id, _ = _get_user()

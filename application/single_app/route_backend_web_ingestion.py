@@ -7,6 +7,7 @@ from flask import request, jsonify, current_app
 from functools import wraps
 
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_authentication import login_required, user_required
 from functions_settings import get_settings, enabled_required
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,8 @@ def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/url', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_ingest_url():
         """Ingest a single URL into the user's workspace."""
         from flask import session
@@ -110,6 +113,8 @@ def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/crawl', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_crawl_sitemap():
         """Crawl a sitemap and ingest all discovered URLs."""
         from flask import session
@@ -191,6 +196,8 @@ def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/github', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_import_github():
         """Import a GitHub repository into the user's workspace."""
         from flask import session
@@ -265,6 +272,8 @@ def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/crawl/status/<job_id>', methods=['GET'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_crawl_status(job_id):
         """Get the status of a crawl job."""
         from flask import session
@@ -296,6 +305,8 @@ def register_route_backend_web_ingestion(app):
 
     @app.route('/api/workspace/documents/url/<document_id>/recrawl', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @login_required
+    @user_required
     def api_recrawl_url(document_id):
         """Re-crawl a web-sourced document to update its content."""
         from flask import session

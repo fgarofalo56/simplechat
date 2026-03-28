@@ -3687,6 +3687,33 @@ def register_route_backend_chats(app):
                         # Stream from regular GPT model (non-agent)
                         debug_print(f"--- Streaming from GPT ({gpt_model}) ---")
                         
+                        # Context Optimization: apply token budgeting if enabled (Phase 5)
+                        try:
+                            if settings.get("enable_context_optimization", False):
+                                from functions_context_optimization import build_optimized_context
+                                budget = settings.get("context_token_budget", 12000)
+                                system_msgs = [m for m in conversation_history_for_api if m.get("role") == "system"]
+                                system_text = "\n".join(m.get("content", "") for m in system_msgs)
+                                ctx = build_optimized_context(
+                                    system_prompt=system_text,
+                                    conversation_history=[m for m in conversation_history_for_api if m.get("role") != "system"],
+                                    search_results=search_results if hybrid_search_enabled and search_results else [],
+                                    user_message=user_message,
+                                    max_context_tokens=budget,
+                                    model=gpt_model,
+                                    gpt_client=gpt_client,
+                                    gpt_model=gpt_model,
+                                )
+                                # Rebuild conversation with optimized context
+                                optimized_msgs = list(system_msgs)  # Keep system messages
+                                if ctx.get("summary"):
+                                    optimized_msgs.append({"role": "system", "content": f"Conversation summary: {ctx['summary']}"})
+                                optimized_msgs.extend(ctx.get("recent_messages", []))
+                                conversation_history_for_api = optimized_msgs
+                                debug_print(f"Context optimization applied: {ctx.get('token_breakdown', {})}")
+                        except Exception as ctx_err:
+                            debug_print(f"Context optimization failed (non-blocking): {ctx_err}")
+
                         # Prepare stream parameters
                         stream_params = {
                             'model': gpt_model,

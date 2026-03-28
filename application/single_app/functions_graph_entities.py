@@ -230,10 +230,10 @@ def extract_and_store_entities(document_id: str, user_id: str,
     workspace_id = public_workspace_id or group_id or user_id
 
     try:
-        from functions_documents import get_document_chunks
-        chunks = get_document_chunks(document_id, user_id,
-                                      group_id=group_id,
-                                      public_workspace_id=public_workspace_id)
+        from functions_documents import get_all_chunks
+        chunks = get_all_chunks(document_id, user_id,
+                                group_id=group_id,
+                                public_workspace_id=public_workspace_id)
 
         total_entities = 0
         total_relationships = 0
