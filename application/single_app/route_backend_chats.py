@@ -2742,6 +2742,26 @@ def register_route_backend_chats(app):
                 
                 # Extract request parameters (same as non-streaming endpoint)
                 user_message = data.get('message', '')
+
+                # Skills Builder: intercept /skill-name commands (Phase A)
+                if user_message.startswith('/') and not user_message.startswith('//') and settings.get('enable_skills_builder', False):
+                    try:
+                        from functions_skill_execution import handle_skill_command
+                        skill_result = handle_skill_command(
+                            user_message, user_id, settings,
+                            group_id=data.get('active_group_id')
+                        )
+                        if skill_result:
+                            output = skill_result.get("output", "")
+                            skill_name = skill_result.get("skill_display_name", "Skill")
+                            duration = skill_result.get("duration_ms", 0)
+                            # Stream the skill result using same SSE pattern
+                            yield f"data: {json.dumps({'content': output})}\n\n"
+                            yield f"data: {json.dumps({'skill_result': True, 'skill_name': skill_name, 'duration_ms': duration, 'done': True})}\n\n"
+                            return
+                    except Exception as skill_err:
+                        debug_print(f"Skill command handling failed (falling through to chat): {skill_err}")
+
                 conversation_id = data.get('conversation_id')
                 hybrid_search_enabled = data.get('hybrid_search')
                 web_search_enabled = data.get('web_search_enabled')
