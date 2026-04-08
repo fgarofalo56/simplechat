@@ -4,6 +4,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from functions_settings import get_settings
 from semantic_kernel.agents.runtime.in_process.in_process_runtime import InProcessRuntime
+from functions_debug import debug_print
 
 # Global executor for background orchestration
 executor = ThreadPoolExecutor(max_workers=4)  # Tune as needed
@@ -24,7 +25,7 @@ def run_orchestration_in_thread(orchestrator, agent_message_history, run_sk_call
             )
             return result
         except Exception as e:
-            print(f"Orchestration error: {e}")
+            debug_print(f"Orchestration error: {e}")
             return None
         finally:
             loop.close()

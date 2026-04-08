@@ -12,6 +12,7 @@ import traceback
 from datetime import datetime
 from config import cosmos_global_actions_container
 from functions_keyvault import keyvault_plugin_save_helper, keyvault_plugin_get_helper, keyvault_plugin_delete_helper, SecretReturnType
+from functions_debug import debug_print
 
 def get_global_actions(return_type=SecretReturnType.TRIGGER):
     """
@@ -30,7 +31,7 @@ def get_global_actions(return_type=SecretReturnType.TRIGGER):
         return actions
         
     except Exception as e:
-        print(f"❌ Error getting global actions: {str(e)}")
+        debug_print(f"❌ Error getting global actions: {str(e)}")
         traceback.print_exc()
         return []
 
@@ -52,11 +53,11 @@ def get_global_action(action_id, return_type=SecretReturnType.TRIGGER):
         )
         # Resolve Key Vault references
         action = keyvault_plugin_get_helper(action, scope_value=action_id, scope="global", return_type=return_type)
-        print(f"✅ Found global action: {action_id}")
+        debug_print(f"✅ Found global action: {action_id}")
         return action
         
     except Exception as e:
-        print(f"❌ Error getting global action {action_id}: {str(e)}")
+        debug_print(f"❌ Error getting global action {action_id}: {str(e)}")
         return None
 
 
@@ -78,15 +79,15 @@ def save_global_action(action_data):
         action_data['is_global'] = True
         action_data['created_at'] = datetime.utcnow().isoformat()
         action_data['updated_at'] = datetime.utcnow().isoformat()
-        print(f"💾 Saving global action: {action_data.get('name', 'Unknown')}")
+        debug_print(f"💾 Saving global action: {action_data.get('name', 'Unknown')}")
         # Store secrets in Key Vault before upsert
         action_data = keyvault_plugin_save_helper(action_data, scope_value=action_data.get('id'), scope="global")
         result = cosmos_global_actions_container.upsert_item(body=action_data)
-        print(f"✅ Global action saved successfully: {result['id']}")
+        debug_print(f"✅ Global action saved successfully: {result['id']}")
         return result
         
     except Exception as e:
-        print(f"❌ Error saving global action: {str(e)}")
+        debug_print(f"❌ Error saving global action: {str(e)}")
         traceback.print_exc()
         return None
 
@@ -102,7 +103,7 @@ def delete_global_action(action_id):
         bool: True if successful, False otherwise
     """
     try:
-        print(f"🗑️ Deleting global action: {action_id}")
+        debug_print(f"🗑️ Deleting global action: {action_id}")
         # Delete secrets from Key Vault before deleting the action
         action = get_global_action(action_id)
         if action:
@@ -111,11 +112,11 @@ def delete_global_action(action_id):
             item=action_id,
             partition_key=action_id
         )
-        print(f"✅ Global action deleted successfully: {action_id}")
+        debug_print(f"✅ Global action deleted successfully: {action_id}")
         return True
         
     except Exception as e:
-        print(f"❌ Error deleting global action {action_id}: {str(e)}")
+        debug_print(f"❌ Error deleting global action {action_id}: {str(e)}")
         traceback.print_exc()
         return False
 

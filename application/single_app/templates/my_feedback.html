@@ -215,7 +215,7 @@
 <!-- Using jQuery for consistency with other updated pages -->
 <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 <!-- Assumes Bootstrap JS is in base.html -->
-<script>
+<script nonce="{{ csp_nonce }}">
   // Helper function
   function escapeHtml(unsafe) {
     if (unsafe === null || typeof unsafe === 'undefined') return '';

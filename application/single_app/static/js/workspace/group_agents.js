@@ -299,7 +299,7 @@ async function deleteGroupAgent(agentId) {
   }
 
   if (!agentId) return;
-  if (!confirm("Delete this group agent?")) return;
+  if (!await showGlobalConfirm("Delete this group agent?", "Delete Agent")) return;
 
   try {
     const response = await fetch(`/api/group/agents/${encodeURIComponent(agentId)}`, {

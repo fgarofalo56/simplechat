@@ -4,6 +4,7 @@ from config import *
 from functions_authentication import *
 from functions_settings import *
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_debug import debug_print
 
 def register_route_backend_users(app):
     """
@@ -63,7 +64,7 @@ def register_route_backend_users(app):
             return jsonify(results), 200
 
         except requests.exceptions.RequestException as e:
-            print(f"Graph API request failed: {e}")
+            debug_print(f"Graph API request failed: {e}")
             # Try to get more details from response if available
             error_details = "Unknown error"
             if e.response is not None:
@@ -91,14 +92,14 @@ def register_route_backend_users(app):
                 item=user_id,
                 partition_key=user_id
             )
-            print(f"/api/user/info/{user_id} → doc: {user_doc}", flush=True)
+            debug_print(f"/api/user/info/{user_id} → doc: {user_doc}", flush=True)
             return jsonify({
                 "user_id": user_id,
                 "email": user_doc.get("email", ""),
                 "display_name": user_doc.get("display_name", "")
             }), 200
         except Exception as e:
-            print(f"[ERROR] /api/user/info/{user_id} failed: {e}", flush=True)
+            debug_print(f"[ERROR] /api/user/info/{user_id} failed: {e}", flush=True)
             return jsonify({
                 "error": f"User not found for oid {user_id}"
             }), 404
@@ -114,11 +115,11 @@ def register_route_backend_users(app):
                  return jsonify({"error": "Unable to identify user"}), 401
         except ValueError as e:
              # Handle case where get_current_user_id fails (e.g., session issue)
-             print(f"Error getting user ID: {e}")
+             debug_print(f"Error getting user ID: {e}")
              return jsonify({"error": str(e)}), 401
         except Exception as e:
              # Catch other potential errors during user ID retrieval
-             print(f"Unexpected error getting user ID: {e}")
+             debug_print(f"Unexpected error getting user ID: {e}")
              return jsonify({"error": "Internal server error identifying user"}), 500
 
 
@@ -164,7 +165,7 @@ def register_route_backend_users(app):
                 } # Add others as needed
                 invalid_keys = set(settings_to_update.keys()) - allowed_keys
                 if invalid_keys:
-                    print(f"Warning: Received invalid settings keys: {invalid_keys}")
+                    debug_print(f"Warning: Received invalid settings keys: {invalid_keys}")
                     # Decide whether to ignore them or return an error
                     # To ignore: settings_to_update = {k: v for k, v in settings_to_update.items() if k in allowed_keys}
                     # To error: return jsonify({"error": f"Invalid settings keys provided: {', '.join(invalid_keys)}"}), 400
@@ -181,7 +182,7 @@ def register_route_backend_users(app):
 
             except Exception as e:
                 # Catch potential JSON parsing errors or other unexpected issues
-                print(f"Error processing POST /api/user/settings: {e}")
+                debug_print(f"Error processing POST /api/user/settings: {e}")
                 return jsonify({"error": "Internal server error processing request"}), 500
 
 
@@ -192,7 +193,7 @@ def register_route_backend_users(app):
             # The frontend JS expects the document structure, including the 'settings' key inside it.
             return jsonify(user_settings_data), 200 # Return the full document or {} if not found
         except Exception as e:
-            print(f"Error retrieving settings for user {user_id}: {e}")
+            debug_print(f"Error retrieving settings for user {user_id}: {e}")
             return jsonify({"error": "Failed to retrieve user settings"}), 500
 
     @app.route('/api/user/profile-image/<user_id>', methods=['GET'])
@@ -220,7 +221,7 @@ def register_route_backend_users(app):
             }), 200
             
         except Exception as e:
-            print(f"[ERROR] /api/user/profile-image/{user_id} failed: {e}", flush=True)
+            debug_print(f"[ERROR] /api/user/profile-image/{user_id} failed: {e}", flush=True)
             return jsonify({
                 "error": f"User profile image not found for oid {user_id}",
                 "profile_image": None

@@ -269,7 +269,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // --- State Variables ---
 let currentPage = 1;
 let pageSize = 10;

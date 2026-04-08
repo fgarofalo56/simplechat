@@ -480,7 +480,7 @@ async function confirmAndDelete(templateId, closeModal = false) {
   if (!templateId) {
     return;
   }
-  if (!confirm('Delete this template? This action cannot be undone.')) {
+  if (!await showGlobalConfirm('Delete this template? This action cannot be undone.', 'Delete Template')) {
     return;
   }
   try {

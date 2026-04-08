@@ -174,11 +174,11 @@
 
 {% block scripts %}
   {{ super() }}
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // Pass permission status and active workspace ID from backend to JavaScript
     window.canCreatePublicWorkspaces = {{ can_create_public_workspaces|tojson }};
     window.activeWorkspaceId = {{ active_public_workspace_id|tojson }};
   </script>
-  <script src="{{ url_for('static', filename='js/public/public_workspace_utility.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/public/my_public_workspaces.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/public/public_workspace_utility.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/public/my_public_workspaces.js') }}"></script>
 {% endblock %}

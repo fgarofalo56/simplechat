@@ -8,10 +8,11 @@ from typing import Any, Dict
 from semantic_kernel.functions import kernel_function
 from semantic_kernel_plugins.base_plugin import BasePlugin
 from semantic_kernel_plugins.plugin_invocation_logger import (
-    plugin_function_logger, 
+    plugin_function_logger,
     log_plugin_invocation,
     auto_wrap_plugin_functions
 )
+from functions_debug import debug_print
 
 
 # Example 1: Using the decorator approach
@@ -232,28 +233,28 @@ def demo_plugin_logging():
     # Use the plugin (this would normally happen during chat completion)
     try:
         result1 = plugin.sample_function("Hello, World!")
-        print(f"Result 1: {result1}")
+        debug_print(f"Result 1: {result1}")
         
         # This will fail and be logged
         result2 = plugin.risky_function("error test")
-        print(f"Result 2: {result2}")
+        debug_print(f"Result 2: {result2}")
         
     except Exception as e:
-        print(f"Expected error: {e}")
+        debug_print(f"Expected error: {e}")
     
     # Get logging statistics
     logger = get_plugin_logger()
     stats = logger.get_plugin_stats()
     recent_invocations = logger.get_recent_invocations(10)
     
-    print("Plugin Statistics:")
-    print(f"Total invocations: {stats.get('total_invocations', 0)}")
-    print(f"Successful: {stats.get('successful_invocations', 0)}")
-    print(f"Failed: {stats.get('failed_invocations', 0)}")
+    debug_print("Plugin Statistics:")
+    debug_print(f"Total invocations: {stats.get('total_invocations', 0)}")
+    debug_print(f"Successful: {stats.get('successful_invocations', 0)}")
+    debug_print(f"Failed: {stats.get('failed_invocations', 0)}")
     
-    print("\nRecent Invocations:")
+    debug_print("\nRecent Invocations:")
     for inv in recent_invocations:
-        print(f"- {inv.plugin_name}.{inv.function_name}: {inv.success} ({inv.duration_ms:.2f}ms)")
+        debug_print(f"- {inv.plugin_name}.{inv.function_name}: {inv.success} ({inv.duration_ms:.2f}ms)")
 
 
 if __name__ == "__main__":

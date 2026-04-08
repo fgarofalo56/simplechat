@@ -3,6 +3,7 @@
 from config import *
 from functions_authentication import *
 from functions_settings import *
+from functions_debug import debug_print
 from swagger_wrapper import swagger_route, get_auth_security   
 
 def register_route_backend_feedback(app):
@@ -53,7 +54,7 @@ def register_route_backend_feedback(app):
             if not message_items:
                 # No messages found for this conversation ID, which is unexpected if feedback is given
                 # You might want to log this or handle it differently
-                print(f"Warning: No messages found for conversationId {conversationId} during feedback submission.")
+                debug_print(f"[FEEDBACK] Warning: No messages found for conversationId {conversationId} during feedback submission.")
                 # Keep ai_message_text and user_prompt_text as None initially
 
             all_messages = message_items # Assign the query results to all_messages
@@ -92,10 +93,10 @@ def register_route_backend_feedback(app):
         except exceptions.CosmosResourceNotFoundError:
              # This specific exception might not be raised by query_items if the container exists but no items match.
              # A query returning empty is more likely. Handle general exceptions.
-             print(f"Error querying messages for conversation {conversationId}: Resource not found (unexpected).")
+             debug_print(f"[FEEDBACK] Error querying messages for conversation {conversationId}: Resource not found (unexpected).")
              # Decide how to handle - maybe proceed with default text?
         except Exception as e:
-            print(f"Error querying messages for conversation {conversationId}: {e}")
+            debug_print(f"[FEEDBACK] Error querying messages for conversation {conversationId}: {e}")
             # Log the error, maybe return a 500 or proceed with default text
             # For now, let the default text logic below handle it.
             pass # Allow execution to continue to the default text part
@@ -134,7 +135,7 @@ def register_route_backend_feedback(app):
             cosmos_feedback_container.upsert_item(item)
             return jsonify({"success": True, "feedbackId": feedback_id})
         except Exception as e:
-            print(f"Error saving feedback item {feedback_id}: {e}")
+            debug_print(f"[FEEDBACK] Error saving feedback item {feedback_id}: {e}")
             return jsonify({"error": "Failed to save feedback"}), 500
     
 
@@ -238,7 +239,7 @@ def register_route_backend_feedback(app):
             })
 
         except Exception as e:
-             print(f"Error fetching feedback for review: {e}")
+             debug_print(f"[FEEDBACK] Error fetching feedback for review: {e}")
              # Log the full exception traceback if possible
              import traceback
              traceback.print_exc()
@@ -275,7 +276,7 @@ def register_route_backend_feedback(app):
         except CosmosResourceNotFoundError: # Import this if not already done
              return jsonify({"error": "Feedback item not found"}), 404
         except Exception as e:
-             print(f"Error fetching single feedback item {feedbackId}: {e}")
+             debug_print(f"[FEEDBACK] Error fetching single feedback item {feedbackId}: {e}")
              import traceback
              traceback.print_exc()
              return jsonify({"error": f"Failed to retrieve feedback item: {str(e)}"}), 500
@@ -299,7 +300,7 @@ def register_route_backend_feedback(app):
         except CosmosResourceNotFoundError:
             return jsonify({"error": "Feedback not found"}), 404
         except Exception as e:
-            print(f"Error reading feedback item {feedbackId} for update: {e}")
+            debug_print(f"[FEEDBACK] Error reading feedback item {feedbackId} for update: {e}")
             return jsonify({"error": "Failed to read feedback item"}), 500
 
 
@@ -321,7 +322,7 @@ def register_route_backend_feedback(app):
              cosmos_feedback_container.upsert_item(feedback_doc)
              return jsonify({"success": True})
         except Exception as e:
-             print(f"Error updating feedback item {feedbackId}: {e}")
+             debug_print(f"[FEEDBACK] Error updating feedback item {feedbackId}: {e}")
              return jsonify({"error": "Failed to save changes"}), 500
 
 
@@ -396,9 +397,12 @@ def register_route_backend_feedback(app):
                 # More robust: query_conditions.append("(IS_DEFINED(c.adminReview) ? c.adminReview.acknowledged : false) = @ackStatus") if false should be default
 
             # Base query structure
-            where_clause = " WHERE " + " AND ".join(query_conditions)
-            query = f"SELECT * FROM c {where_clause} ORDER BY c.timestamp DESC"
-            count_query = f"SELECT VALUE COUNT(1) FROM c {where_clause}"
+            if query_conditions:
+                query = "SELECT * FROM c WHERE " + " AND ".join(query_conditions) + " ORDER BY c.timestamp DESC"
+                count_query = "SELECT VALUE COUNT(1) FROM c WHERE " + " AND ".join(query_conditions)
+            else:
+                query = "SELECT * FROM c ORDER BY c.timestamp DESC"
+                count_query = "SELECT VALUE COUNT(1) FROM c"
 
             # --- Execute Queries ---
             # 1. Get total count
@@ -441,7 +445,7 @@ def register_route_backend_feedback(app):
             }), 200
 
         except Exception as e:
-            print(f"Error in feedback_my: {str(e)}")
+            debug_print(f"[FEEDBACK] Error in feedback_my: {str(e)}")
             return jsonify({"error": f"An error occurred while fetching your feedback: {str(e)}"}), 500
 
 
@@ -451,5 +455,5 @@ def run_prompt_against_gpt(prompt):
     # from your_llm_module import llm_client
     # response = llm_client.invoke(prompt)
     # return response.content
-    print(f"Retesting prompt (stub): {prompt}")
+    debug_print(f"[FEEDBACK] Retesting prompt (stub): {prompt}")
     return f"[Retested with current model config] Mock AI response for: '{prompt}'"

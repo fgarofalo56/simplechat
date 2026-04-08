@@ -82,7 +82,7 @@ def register_route_frontend_control_center(app):
             import traceback
             error_trace = traceback.format_exc()
             debug_print(f"Error loading approvals: {e}\n{error_trace}")
-            print(f"ERROR IN APPROVALS ROUTE: {e}\n{error_trace}")
+            debug_print(f"ERROR IN APPROVALS ROUTE: {e}\n{error_trace}")
             flash(f"Error loading approvals: {str(e)}", "error")
             return redirect(url_for('index'))
 

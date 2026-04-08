@@ -169,6 +169,7 @@ def extract_content_with_azure_di(file_path):
 
 
 def extract_table_file(file_path, file_ext):
+    import pandas  # Lazy import — heavy library only needed for table extraction
     try:
         if file_ext == '.csv':
             df = pandas.read_csv(file_path)
@@ -188,6 +189,7 @@ def extract_pdf_metadata(pdf_path):
     """
     Returns a tuple (title, author, subject, keywords) from the given PDF, using PyMuPDF.
     """
+    import fitz  # Lazy import — heavy library only needed for PDF metadata extraction
     try:
         with fitz.open(pdf_path) as doc:
             meta = doc.metadata
@@ -199,13 +201,14 @@ def extract_pdf_metadata(pdf_path):
             return pdf_title, pdf_author, pdf_subject, pdf_keywords
 
     except Exception as e:
-        print(f"Error extracting PDF metadata: {e}")
+        debug_print(f"Error extracting PDF metadata: {e}")
         return "", "", "", ""
     
 def extract_docx_metadata(docx_path):
     """
     Returns a tuple (title, author) from the given DOCX, using python-docx.
     """
+    import docx  # Lazy import — heavy library only needed for DOCX metadata extraction
     try:
         doc = docx.Document(docx_path)
         core_props = doc.core_properties
@@ -213,7 +216,7 @@ def extract_docx_metadata(docx_path):
         doc_author = core_props.author or ''
         return doc_title, doc_author
     except Exception as e:
-        print(f"Error extracting DOCX metadata: {e}")
+        debug_print(f"Error extracting DOCX metadata: {e}")
         return '', ''
 
 def parse_authors(author_input):
@@ -249,7 +252,7 @@ def chunk_text(text, chunk_size=2000, overlap=200):
         return chunks
     except Exception as e:
         # Log the exception or handle it as needed
-        print(f"Error in chunk_text: {e}")
+        debug_print(f"Error in chunk_text: {e}")
         raise e  # Re-raise the exception to propagate it
     
 def chunk_word_file_into_pages(di_pages):

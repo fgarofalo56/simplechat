@@ -16,6 +16,26 @@ let docsTagsFilter = ''; // Added for Tags filter
 let docsSortBy = '_ts';    // Current sort field
 let docsSortOrder = 'desc'; // Current sort order
 const activePolls = new Set();
+const activePollIntervals = new Map(); // documentId -> intervalId for visibility pause/resume
+
+// Page Visibility API: pause polling when tab is hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Pause all active polls
+        for (const [docId, intervalId] of activePollIntervals.entries()) {
+            clearInterval(intervalId);
+        }
+    } else {
+        // Resume polls that are still active
+        for (const docId of activePolls) {
+            if (!activePollIntervals.has(docId)) continue;
+            // Restart polling - clear stale reference and re-poll
+            activePolls.delete(docId);
+            activePollIntervals.delete(docId);
+            pollDocumentStatus(docId);
+        }
+    }
+});
 
 // ------------- DOM Elements (Documents Tab) -------------
 const documentsTableBody = document.querySelector("#documents-table tbody");
@@ -271,7 +291,7 @@ if (docMetadataForm && docMetadataModalEl) { // Check both exist
             })
             .catch(err => {
                 console.error("Error updating document:", err);
-                alert("Error updating document: " + (err.error || err.message || "Unknown error"));
+                showGlobalToast("Error updating document: " + (err.error || err.message || "Unknown error"), "danger");
             })
             .finally(() => {
                 docSaveBtn.disabled = false;
@@ -286,7 +306,7 @@ if (docMetadataForm && docMetadataModalEl) { // Check both exist
 */
 async function uploadWorkspaceFiles(files) {
    if (!files || files.length === 0) {
-       alert("Please select at least one file to upload.");
+       showGlobalToast("Please select at least one file to upload.", "warning");
        return;
    }
 
@@ -297,7 +317,7 @@ async function uploadWorkspaceFiles(files) {
    for (const file of files) {
        if (file.size > maxFileSizeBytes) {
            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-           alert(`File "${file.name}" (${fileSizeMB} MB) exceeds the maximum allowed size of ${maxFileSizeMB} MB. Please select a smaller file.`);
+           showGlobalToast(`File "${file.name}" (${fileSizeMB} MB) exceeds the maximum allowed size of ${maxFileSizeMB} MB. Please select a smaller file.`, "warning");
            return;
        }
    }
@@ -992,6 +1012,8 @@ function pollDocumentStatus(documentId) {
     // console.log(`Started polling for ${documentId}`);
 
     const intervalId = setInterval(() => {
+        // Skip polling tick if tab is hidden (belt-and-suspenders with visibility handler)
+        if (document.hidden) return;
         // Check if the document elements still exist in the DOM
         const docRow = document.getElementById(`doc-row-${documentId}`);
         const statusRow = document.getElementById(`status-row-${documentId}`);
@@ -999,6 +1021,7 @@ function pollDocumentStatus(documentId) {
             // console.log(`Stopping polling for ${documentId} - elements not found.`);
             clearInterval(intervalId);
             activePolls.delete(documentId);
+            activePollIntervals.delete(documentId);
             return;
         }
 
@@ -1031,6 +1054,7 @@ function pollDocumentStatus(documentId) {
                     // console.log(`Polling ${documentId}: Completed/Errored. Status: ${docStatus}, ${pct}%`);
                     clearInterval(intervalId);
                     activePolls.delete(documentId);
+                    activePollIntervals.delete(documentId);
                     if (statusRow) { statusRow.remove(); } // Remove the progress/status row
                     // Wait 5 seconds, then reload the table to show the detail button
                     setTimeout(() => {
@@ -1057,6 +1081,7 @@ function pollDocumentStatus(documentId) {
                 console.error(`Error polling document ${documentId}:`, err);
                 clearInterval(intervalId);
                 activePolls.delete(documentId);
+                activePollIntervals.delete(documentId);
                 // Update UI to show polling failed
                 if (statusRow) {
                     statusRow.innerHTML = `<td colspan="4"><div class="alert alert-warning alert-sm py-1 px-2 mb-0 small" role="alert"><i class="bi bi-exclamation-triangle-fill me-1"></i>Could not retrieve status: ${escapeHtml(err.message || 'Polling failed')}</div></td>`;
@@ -1071,6 +1096,7 @@ function pollDocumentStatus(documentId) {
                  }
             });
     }, 5000); // Poll every 5 seconds
+    activePollIntervals.set(documentId, intervalId);
 }
 
 // --- show the upgrade alert into your placeholder ---
@@ -1139,14 +1165,14 @@ function showLegacyUpdatePrompt() {
       if (!res.ok) throw new Error(json.error || res.statusText);
   
       // if your endpoint returns { updated_count, failed_count }, you can use those
-      alert(json.message || 'All done!');
+      showGlobalToast(json.message || 'All done!', 'success');
   
       // hide the prompt & reload
       document.getElementById('legacy-update-alert')?.remove();
       fetchUserDocuments();
     } catch (err) {
       console.error('Legacy update failed', err);
-      alert('Failed to upgrade documents: ' + err.message);
+      showGlobalToast('Failed to upgrade documents: ' + err.message, 'danger');
       btn.disabled = false;
       btn.textContent = 'Update Now';
     }
@@ -1205,17 +1231,17 @@ window.onEditDocument = function(docId) {
         })
         .catch(err => {
             console.error("Error retrieving document for edit:", err);
-            alert("Error retrieving document details: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error retrieving document details: " + (err.error || err.message || "Unknown error"), "danger");
         });
 }
 
 
-window.onExtractMetadata = function (docId, event) {
+window.onExtractMetadata = async function (docId, event) {
     // Check window flag - CORRECTED CHECK
     if (!(window.enable_extract_meta_data === true || window.enable_extract_meta_data === "true")) {
-        alert("Metadata extraction is not enabled."); return;
+        showGlobalToast("Metadata extraction is not enabled.", "warning"); return;
     }
-    if (!confirm("Run metadata extraction for this document? This may overwrite existing metadata.")) return;
+    if (!await showGlobalConfirm("Run metadata extraction for this document? This may overwrite existing metadata.", "Extract Metadata")) return;
 
     const extractBtn = event ? event.target.closest('button') : null;
     if (extractBtn) {
@@ -1238,7 +1264,7 @@ window.onExtractMetadata = function (docId, event) {
         })
         .catch(err => {
             console.error("Error calling extract metadata:", err);
-            alert("Error extracting metadata: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error extracting metadata: " + (err.error || err.message || "Unknown error"), "danger");
         })
         .finally(() => {
             if (extractBtn) {
@@ -1252,8 +1278,8 @@ window.onExtractMetadata = function (docId, event) {
 };
 
 
-window.deleteDocument = function(documentId, event) {
-    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
+window.deleteDocument = async function(documentId, event) {
+    if (!await showGlobalConfirm("Are you sure you want to delete this document? This action cannot be undone.", "Delete Document")) return;
 
     const deleteBtn = event ? event.target.closest('button') : null;
     if (deleteBtn) {
@@ -1298,7 +1324,7 @@ window.deleteDocument = function(documentId, event) {
         })
         .catch(error => {
             console.error("Error deleting document:", error);
-            alert("Error deleting document: " + (error.error || error.message || "Unknown error"));
+            showGlobalToast("Error deleting document: " + (error.error || error.message || "Unknown error"), "danger");
             // Re-enable button only if it still exists
             if (deleteBtn && document.body.contains(deleteBtn)) {
                  deleteBtn.disabled = false;
@@ -1307,8 +1333,8 @@ window.deleteDocument = function(documentId, event) {
         });
 }
 
-window.removeSelfFromDocument = function(documentId, event) {
-    if (!confirm("Are you sure you want to remove yourself from this shared document? You will no longer have access to it.")) return;
+window.removeSelfFromDocument = async function(documentId, event) {
+    if (!await showGlobalConfirm("Are you sure you want to remove yourself from this shared document? You will no longer have access to it.", "Remove From Document")) return;
 
     const removeBtn = event ? event.target.closest('button') : null;
     if (removeBtn) {
@@ -1347,7 +1373,7 @@ window.removeSelfFromDocument = function(documentId, event) {
         })
         .catch(error => {
             console.error("Error removing self from document:", error);
-            alert("Error removing yourself from document: " + (error.error || error.message || "Unknown error"));
+            showGlobalToast("Error removing yourself from document: " + (error.error || error.message || "Unknown error"), "danger");
             // Re-enable button only if it still exists
             if (removeBtn && document.body.contains(removeBtn)) {
                 removeBtn.disabled = false;
@@ -1468,10 +1494,10 @@ function updateBulkActionButtons() {
 }
 
 // Delete selected documents
-window.deleteSelectedDocuments = function() {
+window.deleteSelectedDocuments = async function() {
     if (selectedDocuments.size === 0) return;
-    
-    if (!confirm(`Are you sure you want to delete ${selectedDocuments.size} document(s)? This action cannot be undone.`)) {
+
+    if (!await showGlobalConfirm(`Are you sure you want to delete ${selectedDocuments.size} document(s)? This action cannot be undone.`, "Delete Documents")) {
         return;
     }
     
@@ -1498,9 +1524,9 @@ window.deleteSelectedDocuments = function() {
                 // Update status when all operations complete
                 if (completed + failed === documentIds.length) {
                     if (failed > 0) {
-                        alert(`Deleted ${completed} document(s), but failed to delete ${failed} document(s).`);
+                        showGlobalToast(`Deleted ${completed} document(s), but failed to delete ${failed} document(s).`, "warning");
                     } else {
-                        alert(`Successfully deleted ${completed} document(s).`);
+                        showGlobalToast(`Successfully deleted ${completed} document(s).`, "success");
                     }
                     
                     // Refresh the documents list
@@ -1516,7 +1542,7 @@ window.deleteSelectedDocuments = function() {
                 
                 // Update status when all operations complete
                 if (completed + failed === documentIds.length) {
-                    alert(`Deleted ${completed} document(s), but failed to delete ${failed} document(s).`);
+                    showGlobalToast(`Deleted ${completed} document(s), but failed to delete ${failed} document(s).`, "warning");
                     
                     // Refresh the documents list
                     fetchUserDocuments();
@@ -1529,10 +1555,10 @@ window.deleteSelectedDocuments = function() {
 };
 
 // Remove self from selected shared documents
-window.removeSelectedDocuments = function() {
+window.removeSelectedDocuments = async function() {
     if (selectedDocuments.size === 0) return;
-    
-    if (!confirm(`Are you sure you want to remove yourself from ${selectedDocuments.size} shared document(s)? You will no longer have access to them.`)) {
+
+    if (!await showGlobalConfirm(`Are you sure you want to remove yourself from ${selectedDocuments.size} shared document(s)? You will no longer have access to them.`, "Remove From Documents")) {
         return;
     }
     
@@ -1576,9 +1602,9 @@ window.removeSelectedDocuments = function() {
         // Update status when all operations complete
         if (completed + failed === documentIds.length) {
             if (failed > 0) {
-                alert(`Removed yourself from ${completed} document(s), but failed for ${failed} document(s).`);
+                showGlobalToast(`Removed yourself from ${completed} document(s), but failed for ${failed} document(s).`, "warning");
             } else {
-                alert(`Successfully removed yourself from ${completed} document(s).`);
+                showGlobalToast(`Successfully removed yourself from ${completed} document(s).`, "success");
             }
             
             // Refresh the documents list
@@ -1647,7 +1673,7 @@ window.approveSharedDocument = async function(documentId, btn, ownerOid) {
     const cancelBtn = document.getElementById("approveSharedModalCancelBtn");
     const denyBtn = document.getElementById("approveSharedModalDenyBtn");
     if (!modalEl || !modalBody || !approveBtn || !denyBtn) {
-        alert("Approval modal not found in the page.");
+        showGlobalToast("Approval modal not found in the page.", "danger");
         return;
     }
     modalBody.innerHTML = msg;
@@ -1673,12 +1699,12 @@ window.approveSharedDocument = async function(documentId, btn, ownerOid) {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                 fetchUserDocuments();
             } else {
-                alert(data.error || "Failed to approve document");
+                showGlobalToast(data.error || "Failed to approve document", "danger");
                 approveBtn.disabled = false;
                 approveBtn.innerHTML = "Approve";
             }
         } catch (err) {
-            alert("Error approving document: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error approving document: " + (err.error || err.message || "Unknown error"), "danger");
             approveBtn.disabled = false;
             approveBtn.innerHTML = "Approve";
         }
@@ -1696,12 +1722,12 @@ window.approveSharedDocument = async function(documentId, btn, ownerOid) {
                 bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                 fetchUserDocuments();
             } else {
-                alert(data.error || "Failed to deny access");
+                showGlobalToast(data.error || "Failed to deny access", "danger");
                 denyBtn.disabled = false;
                 denyBtn.innerHTML = "Deny";
             }
         } catch (err) {
-            alert("Error denying access: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error denying access: " + (err.error || err.message || "Unknown error"), "danger");
             denyBtn.disabled = false;
             denyBtn.innerHTML = "Deny";
         }

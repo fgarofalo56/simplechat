@@ -7,6 +7,7 @@ from functions_settings import *
 from utils_cache import invalidate_personal_search_cache
 from functions_debug import *
 from functions_activity_logging import log_document_upload, log_document_metadata_update_transaction
+from functions_malware_scanning import scan_file
 import os
 import requests
 from flask import current_app
@@ -184,6 +185,17 @@ def register_route_backend_documents(app):
                  if temp_file_path and os.path.exists(temp_file_path):
                      os.remove(temp_file_path) # Clean up if partially created
                  continue # Skip this file
+
+            # 1b) Malware scan before processing
+            scan_settings = get_settings()
+            scan_result = scan_file(temp_file_path, scan_settings)
+            if not scan_result.is_clean:
+                upload_errors.append(
+                    f"File rejected by malware scan for {original_filename}: {scan_result.details}"
+                )
+                if temp_file_path and os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                continue
 
             try:
                 # 2) Create the Cosmos metadata with status="Queued"
@@ -373,12 +385,12 @@ def register_route_backend_documents(app):
                     query_params.append({"name": param_name, "value": tag})
                 param_count += len(tags_list)
 
-        # Combine conditions into the WHERE clause
-        where_clause = " AND ".join(query_conditions)
-
         # --- 3) First query: get total count based on filters ---
         try:
-            count_query_str = f"SELECT VALUE COUNT(1) FROM c WHERE {where_clause}"
+            if query_conditions:
+                count_query_str = "SELECT VALUE COUNT(1) FROM c WHERE " + " AND ".join(query_conditions)
+            else:
+                count_query_str = "SELECT VALUE COUNT(1) FROM c"
             # debug_print(f"Count Query: {count_query_str}") # Optional Debugging
             # debug_print(f"Count Params: {query_params}")    # Optional Debugging
             count_items = list(cosmos_user_documents_container.query_items(
@@ -395,14 +407,25 @@ def register_route_backend_documents(app):
 
         # --- 4) Second query: fetch the page of data based on filters ---
         try:
-            offset = (page - 1) * page_size
-            data_query_str = f"""
-                SELECT *
-                FROM c
-                WHERE {where_clause}
-                ORDER BY c.{sort_by} {sort_order}
-                OFFSET {offset} LIMIT {page_size}
-            """
+            # Validate offset and limit as integers (Cosmos doesn't support parameterized OFFSET/LIMIT)
+            offset = int((page - 1) * page_size)
+            page_size = int(page_size)
+
+            if query_conditions:
+                data_query_str = f"""
+                    SELECT *
+                    FROM c
+                    WHERE {" AND ".join(query_conditions)}
+                    ORDER BY c.{sort_by} {sort_order}
+                    OFFSET {offset} LIMIT {page_size}
+                """
+            else:
+                data_query_str = f"""
+                    SELECT *
+                    FROM c
+                    ORDER BY c.{sort_by} {sort_order}
+                    OFFSET {offset} LIMIT {page_size}
+                """
             # debug_print(f"Data Query: {data_query_str}") # Optional Debugging
             # debug_print(f"Data Params: {query_params}")    # Optional Debugging
             docs = list(cosmos_user_documents_container.query_items(

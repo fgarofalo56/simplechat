@@ -302,7 +302,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function copyToClipboard(elementId) {
     const element = document.getElementById(elementId);
     const text = element.value || element.textContent;

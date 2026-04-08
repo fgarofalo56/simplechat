@@ -438,7 +438,7 @@ async function saveSearchToHistory(searchTerm) {
 }
 
 async function clearSearchHistory() {
-    if (!confirm('Are you sure you want to clear your search history?')) {
+    if (!await showGlobalConfirm('Are you sure you want to clear your search history?', "Clear History")) {
         return;
     }
     

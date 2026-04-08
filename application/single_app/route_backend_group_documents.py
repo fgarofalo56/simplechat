@@ -8,8 +8,10 @@ from functions_documents import *
 from utils_cache import invalidate_group_search_cache
 from functions_debug import *
 from functions_activity_logging import log_document_upload
+from functions_malware_scanning import scan_file
 from flask import current_app
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_debug import debug_print
 
 def register_route_backend_group_documents(app):
     """
@@ -88,6 +90,17 @@ def register_route_backend_group_documents(app):
                     temp_file_path = tmp_file.name
             except Exception as e:
                 upload_errors.append(f"Failed to save temporary file for {original_filename}: {e}")
+                if temp_file_path and os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
+                continue
+
+            # Malware scan before processing
+            scan_settings = get_settings()
+            scan_result = scan_file(temp_file_path, scan_settings)
+            if not scan_result.is_clean:
+                upload_errors.append(
+                    f"File rejected by malware scan for {original_filename}: {scan_result.details}"
+                )
                 if temp_file_path and os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
                 continue
@@ -275,11 +288,12 @@ def register_route_backend_group_documents(app):
                     query_params.append({"name": param_name, "value": tag})
                 param_count += len(tags_list)
 
-        where_clause = " AND ".join(query_conditions)
-
         # --- 3) Get total count ---
         try:
-            count_query_str = f"SELECT VALUE COUNT(1) FROM c WHERE {where_clause}"
+            if query_conditions:
+                count_query_str = "SELECT VALUE COUNT(1) FROM c WHERE " + " AND ".join(query_conditions)
+            else:
+                count_query_str = "SELECT VALUE COUNT(1) FROM c"
             count_items = list(cosmos_group_documents_container.query_items(
                 query=count_query_str,
                 parameters=query_params,
@@ -287,26 +301,37 @@ def register_route_backend_group_documents(app):
             ))
             total_count = count_items[0] if count_items else 0
         except Exception as e:
-            print(f"Error executing count query for group: {e}")
+            debug_print(f"Error executing count query for group: {e}")
             return jsonify({"error": f"Error counting documents: {str(e)}"}), 500
 
         # --- 4) Get paginated data ---
         try:
-            offset = (page - 1) * page_size
-            data_query_str = f"""
-                SELECT *
-                FROM c
-                WHERE {where_clause}
-                ORDER BY c.{sort_by} {sort_order}
-                OFFSET {offset} LIMIT {page_size}
-            """
+            # Validate offset and limit as integers (Cosmos doesn't support parameterized OFFSET/LIMIT)
+            offset = int((page - 1) * page_size)
+            page_size = int(page_size)
+
+            if query_conditions:
+                data_query_str = f"""
+                    SELECT *
+                    FROM c
+                    WHERE {" AND ".join(query_conditions)}
+                    ORDER BY c.{sort_by} {sort_order}
+                    OFFSET {offset} LIMIT {page_size}
+                """
+            else:
+                data_query_str = f"""
+                    SELECT *
+                    FROM c
+                    ORDER BY c.{sort_by} {sort_order}
+                    OFFSET {offset} LIMIT {page_size}
+                """
             docs = list(cosmos_group_documents_container.query_items(
                 query=data_query_str,
                 parameters=query_params,
                 enable_cross_partition_query=True
             ))
         except Exception as e:
-            print(f"Error fetching group documents: {e}")
+            debug_print(f"Error fetching group documents: {e}")
             return jsonify({"error": f"Error fetching documents: {str(e)}"}), 500
 
         
@@ -346,7 +371,7 @@ def register_route_backend_group_documents(app):
                     )
                     legacy_count += legacy_docs[0] if legacy_docs else 0
         except Exception as e:
-            print(f"Error executing legacy query: {e}")
+            debug_print(f"Error executing legacy query: {e}")
 
         # --- 5) Return results ---
         return jsonify({

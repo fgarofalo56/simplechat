@@ -370,7 +370,7 @@ async function deleteGroupPlugin(pluginId) {
     showToast("Global actions cannot be deleted from a group workspace.", "info");
     return;
   }
-  if (!confirm("Delete this group action?")) return;
+  if (!await showGlobalConfirm("Delete this group action?", "Delete Action")) return;
 
   try {
     const response = await fetch(`/api/group/plugins/${encodeURIComponent(pluginId)}`, {

@@ -630,9 +630,9 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
 // Initialize charts
 let loginChart, conversationChart, documentChart, tokenChart, storageChart;
 

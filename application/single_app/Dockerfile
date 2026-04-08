@@ -69,4 +69,4 @@ COPY --chown=${UID}:${GID} application/single_app ./
 # Expose port
 EXPOSE 5000
 
-ENTRYPOINT [ "python3", "/app/app.py" ]
+ENTRYPOINT [ "python3", "-m", "gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app" ]

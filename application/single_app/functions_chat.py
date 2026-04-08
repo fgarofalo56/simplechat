@@ -3,6 +3,7 @@ import logging
 import types
 from semantic_kernel import Kernel
 from functions_appinsights import log_event
+from functions_debug import debug_print
 
 def load_user_kernel(user_id, redis_client):
     """
@@ -193,7 +194,7 @@ def sort_messages_by_thread(messages):
     legacy_msgs = [m for m in messages if not get_thread_id(m)]
     threaded_msgs = [m for m in messages if get_thread_id(m)]
     
-    print(f"[SORT] Total messages: {len(messages)}, Legacy: {len(legacy_msgs)}, Threaded: {len(threaded_msgs)}")
+    debug_print(f"[SORT] Total messages: {len(messages)}, Legacy: {len(legacy_msgs)}, Threaded: {len(threaded_msgs)}")
     
     # Sort legacy by timestamp
     legacy_msgs.sort(key=lambda x: x.get('timestamp', ''))
@@ -211,9 +212,9 @@ def sort_messages_by_thread(messages):
         if tid not in earliest_timestamp_by_thread or timestamp < earliest_timestamp_by_thread[tid]:
             earliest_timestamp_by_thread[tid] = timestamp
     
-    print(f"[SORT] Earliest timestamp by thread_id:")
+    debug_print(f"[SORT] Earliest timestamp by thread_id:")
     for tid, ts in earliest_timestamp_by_thread.items():
-        print(f"  {tid}: {ts}")
+        debug_print(f"  {tid}: {ts}")
     
     # Group messages by thread_id
     messages_by_thread = {}
@@ -236,7 +237,7 @@ def sort_messages_by_thread(messages):
             if tid not in children_thread_map[prev]:  # Avoid duplicates
                 children_thread_map[prev].append(tid)
     
-    print(f"[SORT] Children thread map: {children_thread_map}")
+    debug_print(f"[SORT] Children thread map: {children_thread_map}")
             
     # Find root thread_ids: thread_ids whose previous_thread_id is None OR not in the current set
     root_thread_ids = []
@@ -246,15 +247,15 @@ def sort_messages_by_thread(messages):
         if not prev or prev not in thread_ids_seen:
             root_thread_ids.append(tid)
     
-    print(f"[SORT] Found {len(root_thread_ids)} root thread_ids: {root_thread_ids}")
+    debug_print(f"[SORT] Found {len(root_thread_ids)} root thread_ids: {root_thread_ids}")
     
     # Sort root thread_ids by the EARLIEST timestamp to maintain order even after retries
     root_thread_ids.sort(key=lambda tid: earliest_timestamp_by_thread.get(tid, ''))
     
-    print(f"[SORT] After sorting root thread_ids by earliest timestamp:")
+    debug_print(f"[SORT] After sorting root thread_ids by earliest timestamp:")
     for i, tid in enumerate(root_thread_ids):
         earliest = earliest_timestamp_by_thread.get(tid)
-        print(f"  {i+1}. thread_id={tid}, earliest={earliest}")
+        debug_print(f"  {i+1}. thread_id={tid}, earliest={earliest}")
     
     ordered_threaded = []
     

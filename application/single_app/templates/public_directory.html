@@ -343,5 +343,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/public/public_directory.js"></script>
+<script nonce="{{ csp_nonce }}" src="/static/js/public/public_directory.js"></script>
 {% endblock %}

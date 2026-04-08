@@ -878,7 +878,7 @@
 }
 </style>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   const agentModalEl = document.getElementById('agentModal');
   const agentConfigModalEl = document.getElementById('agentConfigInfoModal');
@@ -913,4 +913,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% include '_agent_config_info.html' %}
 {% include '_agent_examples_modal.html' %}
-<script type="module" src="{{ url_for('static', filename='js/agent_templates_gallery.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/agent_templates_gallery.js') }}"></script>

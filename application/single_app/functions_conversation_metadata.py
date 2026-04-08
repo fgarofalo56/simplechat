@@ -592,7 +592,7 @@ def update_conversation_with_metadata(conversation_id, metadata_updates):
         return True
         
     except Exception as e:
-        print(f"Error updating conversation metadata for {conversation_id}: {e}")
+        debug_print(f"Error updating conversation metadata for {conversation_id}: {e}")
         return False
 
 
@@ -614,5 +614,5 @@ def get_conversation_metadata(conversation_id):
         return conversation_item
         
     except Exception as e:
-        print(f"Error retrieving conversation metadata for {conversation_id}: {e}")
+        debug_print(f"Error retrieving conversation metadata for {conversation_id}: {e}")
         return None

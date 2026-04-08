@@ -27,6 +27,7 @@ from config import (
     cosmos_search_cache_container
 )
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
+from functions_debug import debug_print
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def _debug_print(message: str, context: str = "CACHE", **kwargs):
     
     debug_message = f"[{timestamp}] [{context}] {message}{extra_info}"
     logger.info(debug_message)
-    print(debug_message, flush=True)  # Also print to stdout for visibility
+    debug_print(debug_message, flush=True)  # Also print to stdout for visibility
 
 
 def get_personal_document_fingerprint(user_id: str) -> str:

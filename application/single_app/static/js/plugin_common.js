@@ -145,7 +145,10 @@ export async function populatePluginTypes({endpoint, typeSelect}) {
     const types = await res.json();
     typeSelect.innerHTML = '<option value="">Select type...</option>';
     types.forEach(t => {
-      typeSelect.innerHTML += `<option value="${t.type}">${t.display || t.type}</option>`;
+      const opt = document.createElement('option');
+      opt.value = t.type;
+      opt.textContent = t.display || t.type;
+      typeSelect.appendChild(opt);
     });
   } catch (e) {
     typeSelect.innerHTML = '<option value="">Error loading types</option>';

@@ -490,6 +490,72 @@
               </li>
             </ul>
           </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="search-quality">
+              <i class="bi bi-sort-down-alt me-2"></i><span class="nav-text">Search Quality</span>
+            </a>
+            <ul class="nav flex-column ms-3" style="display: none;" id="search-quality-submenu">
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="search-quality" data-section="cohere-rerank-section">
+                  <i class="bi bi-arrow-down-up me-2" style="font-size: 0.8em;"></i><span class="nav-text">Cohere Reranking</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="search-quality" data-section="attention-optimization-section">
+                  <i class="bi bi-bullseye me-2" style="font-size: 0.8em;"></i><span class="nav-text">Attention Optimization</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="web-crawling">
+              <i class="bi bi-globe2 me-2"></i><span class="nav-text">Web Crawling</span>
+            </a>
+            <ul class="nav flex-column ms-3" style="display: none;" id="web-crawling-submenu">
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="web-crawling" data-section="web-url-ingestion-section">
+                  <i class="bi bi-link-45deg me-2" style="font-size: 0.8em;"></i><span class="nav-text">Web URL Ingestion</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="web-crawling" data-section="github-import-section">
+                  <i class="bi bi-github me-2" style="font-size: 0.8em;"></i><span class="nav-text">GitHub Repository Import</span>
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="mcp-servers">
+              <i class="bi bi-plug me-2"></i><span class="nav-text">MCP Servers</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="skills-builder">
+              <i class="bi bi-tools me-2"></i><span class="nav-text">Skills Builder</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="graph-rag">
+              <i class="bi bi-diagram-3 me-2"></i><span class="nav-text">Graph RAG</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link d-flex align-items-center admin-nav-tab" href="#" data-tab="context-optimization">
+              <i class="bi bi-speedometer me-2"></i><span class="nav-text">Context Optimization</span>
+            </a>
+            <ul class="nav flex-column ms-3" style="display: none;" id="context-optimization-submenu">
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="context-optimization" data-section="token-budget-section">
+                  <i class="bi bi-calculator me-2" style="font-size: 0.8em;"></i><span class="nav-text">Token Budget</span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link d-flex align-items-center admin-nav-section" href="#" data-tab="context-optimization" data-section="advanced-retrieval-section">
+                  <i class="bi bi-gear me-2" style="font-size: 0.8em;"></i><span class="nav-text">Advanced Retrieval</span>
+                </a>
+              </li>
+            </ul>
+          </li>
         </ul>
       </div>
     </div>
@@ -743,7 +809,7 @@
       <a class="btn btn-outline-primary w-100" href="{{ url_for('login') }}">Login</a>
     {% endif %}
   </div>
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // Collapsible Workspaces Section
     document.addEventListener('DOMContentLoaded', function() {
       var toggle = document.getElementById('workspaces-toggle');

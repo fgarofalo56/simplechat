@@ -126,7 +126,7 @@ function handleAddAgentClick() {
 async function openAgentModal(agent = null) {
 
     const modalEl = document.getElementById('agentModal');
-    if (!modalEl) return alert('Agent modal not found.');
+    if (!modalEl) return showGlobalToast('Agent modal not found.', 'danger');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
     // Only call showModal; instance is created once globally
@@ -303,9 +303,11 @@ function handleAgentTableClick(e) {
         const idx = parseInt(e.target.getAttribute('data-index'), 10);
         if (!isNaN(idx) && Array.isArray(agents)) {
             // Confirm delete
-            if (confirm(`Are you sure you want to delete agent '${agents[idx].name}'?`)) {
-                deleteAgent(idx);
-            }
+            (async () => {
+                if (await showGlobalConfirm(`Are you sure you want to delete agent '${agents[idx].name}'?`, 'Delete Agent')) {
+                    deleteAgent(idx);
+                }
+            })();
         }
     }
 }

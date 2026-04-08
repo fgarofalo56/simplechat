@@ -8,6 +8,7 @@ from functions_authentication import *
 from functions_settings import *
 from enum import Enum
 import app_settings_cache
+from functions_debug import debug_print
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -104,7 +105,7 @@ def retrieve_secret_from_key_vault_by_full_name(full_secret_name):
         secret_client = SecretClient(vault_url=key_vault_url, credential=get_keyvault_credential())
 
         retrieved_secret = secret_client.get_secret(full_secret_name)
-        print(f"Secret '{full_secret_name}' retrieved successfully from Key Vault.")
+        debug_print(f"Secret '{full_secret_name}' retrieved successfully from Key Vault.")
         return retrieved_secret.value
     except Exception as e:
         logging.error(f"Failed to retrieve secret '{full_secret_name}' from Key Vault: {str(e)}")
@@ -152,7 +153,7 @@ def store_secret_in_key_vault(secret_name, secret_value, scope_value, source="gl
         key_vault_url = f"https://{key_vault_name}{KEY_VAULT_DOMAIN}"
         secret_client = SecretClient(vault_url=key_vault_url, credential=get_keyvault_credential())
         secret_client.set_secret(full_secret_name, secret_value)
-        print(f"Secret '{full_secret_name}' stored successfully in Key Vault.")
+        debug_print(f"Secret '{full_secret_name}' stored successfully in Key Vault.")
         return full_secret_name
     except Exception as e:
         logging.error(f"Failed to store secret '{full_secret_name}' in Key Vault: {str(e)}")
@@ -333,7 +334,7 @@ def keyvault_plugin_save_helper(plugin_dict, scope_value, scope="global"):
                     logging.error(f"Failed to store plugin key in Key Vault: {e}")
                     raise Exception(f"Failed to store plugin key in Key Vault: {e}")
         else:
-            print(f"Auth type '{auth_type}' does not require Key Vault storage. Does not match ")
+            debug_print(f"Auth type '{auth_type}' does not require Key Vault storage. Does not match ")
 
     # Handle additionalFields dynamic secrets
     additional_fields = updated.get('additionalFields', {})

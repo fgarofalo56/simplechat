@@ -8,13 +8,11 @@ from semantic_kernel.connectors.ai.chat_completion_client_base import ChatComple
 from semantic_kernel_fact_memory_store import FactMemoryStore
 from semantic_kernel_loader import initialize_semantic_kernel
 from semantic_kernel_plugins.plugin_invocation_logger import get_plugin_logger
-from foundry_agent_runtime import FoundryAgentInvocationError, execute_foundry_agent
 import builtins
 import asyncio, types
-import ast
 import json
 import re
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Optional
 from config import *
 from flask import g
 from functions_authentication import *
@@ -28,6 +26,10 @@ from functions_debug import debug_print
 from functions_activity_logging import log_chat_activity, log_conversation_creation, log_token_usage
 from flask import current_app
 from swagger_wrapper import swagger_route, get_auth_security
+from utils.masking import merge_masked_ranges, remove_masked_content
+from utils.chat_helpers import parse_json_string, dict_requires_reload, list_requires_reload, result_requires_message_reload
+from services.web_search_service import perform_web_search
+from services.ai_client_service import initialize_gpt_client
 
 
 def get_kernel():
@@ -39,9 +41,13 @@ def get_kernel_agents():
     log_event(f"[SKChat] get_kernel_agents - g.kernel_agents: {type(g_agents)} ({len(g_agents) if g_agents else 0} agents), builtins.kernel_agents: {type(builtins_agents)} ({len(builtins_agents) if builtins_agents else 0} agents)", level=logging.INFO)
     return g_agents or builtins_agents
 
-def register_route_backend_chats(app):
+def register_route_backend_chats(app, limiter=None):
+    # Chat-specific rate limit decorator (tighter than global default)
+    chat_limit = limiter.limit("30 per minute") if limiter else (lambda f: f)
+
     @app.route('/api/chat', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @chat_limit
     @login_required
     @user_required
     def chat_api():
@@ -69,64 +75,9 @@ def register_route_backend_chats(app):
             tags_filter = data.get('tags', [])  # Extract tags filter
             reload_messages_required = False
 
-            def parse_json_string(candidate: str) -> Any:
-                """Parse JSON content when strings look like serialized structures."""
-                trimmed = candidate.strip()
-                if not trimmed or trimmed[0] not in ('{', '['):
-                    return None
-                try:
-                    return json.loads(trimmed)
-                except Exception as exc:
-                    log_event(
-                        f"[result_requires_message_reload] Failed to parse JSON: {str(exc)} | candidate: {trimmed[:200]}",
-                        level=logging.DEBUG
-                    )
-                    return None
+            # Helper functions extracted to utils.chat_helpers:
+            # parse_json_string, dict_requires_reload, list_requires_reload, result_requires_message_reload
 
-            def dict_requires_reload(payload: Dict[str, Any]) -> bool:
-                """Inspect dictionary payloads for any signal that messages were persisted."""
-                if payload.get('reload_messages') or payload.get('requires_message_reload'):
-                    return True
-
-                metadata = payload.get('metadata')
-                if isinstance(metadata, dict) and metadata.get('requires_message_reload'):
-                    return True
-
-                image_url = payload.get('image_url')
-                if isinstance(image_url, dict) and image_url.get('url'):
-                    return True
-                if isinstance(image_url, str) and image_url.strip():
-                    return True
-
-                result_type = payload.get('type')
-                if isinstance(result_type, str) and result_type.lower() == 'image_url':
-                    return True
-
-                mime = payload.get('mime')
-                if isinstance(mime, str) and mime.startswith('image/'):
-                    return True
-
-                for value in payload.values():
-                    if result_requires_message_reload(value):
-                        return True
-                return False
-
-            def list_requires_reload(items: List[Any]) -> bool:
-                """Evaluate list items for reload requirements."""
-                return any(result_requires_message_reload(item) for item in items)
-
-            def result_requires_message_reload(result: Any) -> bool:
-                """Heuristically detect plugin outputs that inject new Cosmos messages (e.g., chart images)."""
-                if result is None:
-                    return False
-                if isinstance(result, str):
-                    parsed = parse_json_string(result)
-                    return result_requires_message_reload(parsed) if parsed is not None else False
-                if isinstance(result, list):
-                    return list_requires_reload(result)
-                if isinstance(result, dict):
-                    return dict_requires_reload(result)
-                return False
             active_group_id = data.get('active_group_id')
             active_group_ids = data.get('active_group_ids', [])
             # Backwards compat: if new list not provided, wrap single ID
@@ -203,85 +154,10 @@ def register_route_backend_chats(app):
             # GPT & Image generation APIM or direct
             gpt_model = ""
             gpt_client = None
-            enable_gpt_apim = settings.get('enable_gpt_apim', False)
             enable_image_gen_apim = settings.get('enable_image_gen_apim', False)
 
             try:
-                if enable_gpt_apim:
-                    # read raw comma-delimited deployments
-                    raw = settings.get('azure_apim_gpt_deployment', '')
-                    if not raw:
-                        raise ValueError("APIM GPT deployment name not configured.")
-
-                    # split, strip, and filter out empty entries
-                    apim_models = [m.strip() for m in raw.split(',') if m.strip()]
-                    if not apim_models:
-                        raise ValueError("No valid APIM GPT deployment names found.")
-
-                    # if frontend specified one, use it (must be in the configured list)
-                    if frontend_gpt_model:
-                        if frontend_gpt_model not in apim_models:
-                            raise ValueError(
-                                f"Requested model '{frontend_gpt_model}' is not configured for APIM."
-                            )
-                        gpt_model = frontend_gpt_model
-
-                    # otherwise if there's exactly one deployment, default to it
-                    elif len(apim_models) == 1:
-                        gpt_model = apim_models[0]
-
-                    # otherwise you must pass model_deployment in the request
-                    else:
-                        raise ValueError(
-                            "Multiple APIM GPT deployments configured; please include "
-                            "'model_deployment' in your request."
-                        )
-
-                    # initialize the APIM client
-                    gpt_client = AzureOpenAI(
-                        api_version=settings.get('azure_apim_gpt_api_version'),
-                        azure_endpoint=settings.get('azure_apim_gpt_endpoint'),
-                        api_key=settings.get('azure_apim_gpt_subscription_key')
-                    )
-                else:
-                    auth_type = settings.get('azure_openai_gpt_authentication_type')
-                    endpoint = settings.get('azure_openai_gpt_endpoint')
-                    api_version = settings.get('azure_openai_gpt_api_version')
-                    gpt_model_obj = settings.get('gpt_model', {})
-
-                    if gpt_model_obj and gpt_model_obj.get('selected'):
-                        selected_gpt_model = gpt_model_obj['selected'][0]
-                        gpt_model = selected_gpt_model['deploymentName']
-                    else:
-                        # Fallback or raise error if no model selected/configured
-                        raise ValueError("No GPT model selected or configured.")
-
-                    if frontend_gpt_model:
-                        gpt_model = frontend_gpt_model
-                    elif gpt_model_obj and gpt_model_obj.get('selected'):
-                        selected_gpt_model = gpt_model_obj['selected'][0]
-                        gpt_model = selected_gpt_model['deploymentName']
-                    else:
-                        raise ValueError("No GPT model selected or configured.")
-
-                    if auth_type == 'managed_identity':
-                        token_provider = get_bearer_token_provider(DefaultAzureCredential(), cognitive_services_scope)
-                        gpt_client = AzureOpenAI(
-                            api_version=api_version,
-                            azure_endpoint=endpoint,
-                            azure_ad_token_provider=token_provider
-                        )
-                    else: # Default to API Key
-                        api_key = settings.get('azure_openai_gpt_key')
-                        if not api_key: raise ValueError("Azure OpenAI API Key not configured.")
-                        gpt_client = AzureOpenAI(
-                            api_version=api_version,
-                            azure_endpoint=endpoint,
-                            api_key=api_key
-                        )
-
-                if not gpt_client or not gpt_model:
-                    raise ValueError("GPT Client or Model could not be initialized.")
+                gpt_client, gpt_model = initialize_gpt_client(settings, frontend_gpt_model)
 
             except Exception as e:
                 debug_print(f"Error initializing GPT client/model: {e}")
@@ -994,144 +870,123 @@ def register_route_backend_chats(app):
                     # --- NEW: Extract metadata (keywords/abstract) for additional citations ---
                     # Only if extract_metadata is enabled
                     if settings.get('enable_extract_meta_data', False):
-                        from functions_documents import get_document_metadata_for_citations
+                        from services.chunk_service import get_batch_document_metadata_for_citations
 
-                        # Track which documents we've already processed to avoid duplicates
+                        # Collect unique documents and their workspace context
+                        doc_requests = []
                         processed_doc_ids = set()
+                        doc_context = {}  # doc_id -> original search result context
 
                         for doc in search_results:
-                            # Get document ID (from the chunk's document reference)
-                            # AI Search chunks contain references to their parent document
                             doc_id = doc.get('id', '').split('_')[0] if doc.get('id') else None
-
-                            # Skip if we've already processed this document
                             if not doc_id or doc_id in processed_doc_ids:
                                 continue
-
                             processed_doc_ids.add(doc_id)
-                            # Determine workspace type from the search result fields
                             doc_user_id = doc.get('user_id')
                             doc_group_id = doc.get('group_id')
                             doc_public_workspace_id = doc.get('public_workspace_id')
+                            doc_requests.append({
+                                'document_id': doc_id,
+                                'user_id': doc_user_id if doc_user_id else None,
+                                'group_id': doc_group_id if doc_group_id else None,
+                                'public_workspace_id': doc_public_workspace_id if doc_public_workspace_id else None,
+                            })
+                            doc_context[doc_id] = doc
 
-                            
-                            # Query Cosmos for this document's metadata
-                            metadata = get_document_metadata_for_citations(
-                                document_id=doc_id,
-                                user_id=doc_user_id if doc_user_id else None,
-                                group_id=doc_group_id if doc_group_id else None,
-                                public_workspace_id=doc_public_workspace_id if doc_public_workspace_id else None
-                            )
+                        # Batch fetch all metadata at once (grouped by container type internally)
+                        all_metadata = get_batch_document_metadata_for_citations(doc_requests)
 
-                            
-                            # If we have metadata with content, create additional citations
-                            if metadata:
-                                file_name = metadata.get('file_name', 'Unknown')
-                                keywords = metadata.get('keywords', [])
-                                abstract = metadata.get('abstract', '')
+                        for doc_id, metadata in all_metadata.items():
+                            if not metadata:
+                                continue
+                            doc = doc_context.get(doc_id, {})
+                            doc_group_id = doc.get('group_id')
+                            file_name = metadata.get('file_name', 'Unknown')
+                            keywords = metadata.get('keywords', [])
+                            abstract = metadata.get('abstract', '')
 
-                                
-                                # Create citation for keywords if they exist
-                                if keywords and len(keywords) > 0:
-                                    keywords_text = ', '.join(keywords) if isinstance(keywords, list) else str(keywords)
-                                    keywords_citation_id = f"{doc_id}_keywords"
+                            # Create citation for keywords if they exist
+                            if keywords and len(keywords) > 0:
+                                keywords_text = ', '.join(keywords) if isinstance(keywords, list) else str(keywords)
+                                keywords_citation_id = f"{doc_id}_keywords"
 
-                                    
-                                    keywords_citation = {
-                                        "file_name": file_name,
-                                        "citation_id": keywords_citation_id,
-                                        "page_number": "Metadata",  # Special page identifier
-                                        "chunk_id": keywords_citation_id,
-                                        "chunk_sequence": 9999,  # High number to sort to end
-                                        "score": 0.0,  # No relevance score for metadata
-                                        "group_id": doc_group_id,
-                                        "version": doc.get('version', 'N/A'),
-                                        "classification": doc.get('document_classification'),
-                                        "metadata_type": "keywords",  # Flag this as metadata citation
-                                        "metadata_content": keywords_text
-                                    }
-                                    hybrid_citations_list.append(keywords_citation)
-                                    combined_documents.append(keywords_citation)  # Add to combined_documents too
+                                keywords_citation = {
+                                    "file_name": file_name,
+                                    "citation_id": keywords_citation_id,
+                                    "page_number": "Metadata",
+                                    "chunk_id": keywords_citation_id,
+                                    "chunk_sequence": 9999,
+                                    "score": 0.0,
+                                    "group_id": doc_group_id,
+                                    "version": doc.get('version', 'N/A'),
+                                    "classification": doc.get('document_classification'),
+                                    "metadata_type": "keywords",
+                                    "metadata_content": keywords_text
+                                }
+                                hybrid_citations_list.append(keywords_citation)
+                                combined_documents.append(keywords_citation)
 
-                                    # Add keywords to retrieved content for the model
-                                    keywords_context = f"Document Keywords ({file_name}): {keywords_text}"
-                                    retrieved_texts.append(keywords_context)
+                                keywords_context = f"Document Keywords ({file_name}): {keywords_text}"
+                                retrieved_texts.append(keywords_context)
 
-                                # Create citation for abstract if it exists
-                                if abstract and len(abstract.strip()) > 0:
-                                    abstract_citation_id = f"{doc_id}_abstract"
+                            # Create citation for abstract if it exists
+                            if abstract and len(abstract.strip()) > 0:
+                                abstract_citation_id = f"{doc_id}_abstract"
 
-                                    
-                                    # Add keywords to retrieved content for the model
-                                    keywords_context = f"Document Keywords ({file_name}): {keywords_text}"
-                                    retrieved_texts.append(keywords_context)
-                                
-                                # Create citation for abstract if it exists
-                                if abstract and len(abstract.strip()) > 0:
-                                    abstract_citation_id = f"{doc_id}_abstract"
-                                    
-                                    abstract_citation = {
-                                        "file_name": file_name,
-                                        "citation_id": abstract_citation_id,
-                                        "page_number": "Metadata",  # Special page identifier
-                                        "chunk_id": abstract_citation_id,
-                                        "chunk_sequence": 9998,  # High number to sort to end
-                                        "score": 0.0,  # No relevance score for metadata
-                                        "group_id": doc_group_id,
-                                        "version": doc.get('version', 'N/A'),
-                                        "classification": doc.get('document_classification'),
-                                        "metadata_type": "abstract",  # Flag this as metadata citation
-                                        "metadata_content": abstract
-                                    }
-                                    hybrid_citations_list.append(abstract_citation)
-                                    combined_documents.append(abstract_citation)  # Add to combined_documents too
+                                abstract_citation = {
+                                    "file_name": file_name,
+                                    "citation_id": abstract_citation_id,
+                                    "page_number": "Metadata",
+                                    "chunk_id": abstract_citation_id,
+                                    "chunk_sequence": 9998,
+                                    "score": 0.0,
+                                    "group_id": doc_group_id,
+                                    "version": doc.get('version', 'N/A'),
+                                    "classification": doc.get('document_classification'),
+                                    "metadata_type": "abstract",
+                                    "metadata_content": abstract
+                                }
+                                hybrid_citations_list.append(abstract_citation)
+                                combined_documents.append(abstract_citation)
 
-                                    # Add abstract to retrieved content for the model
-                                    abstract_context = f"Document Abstract ({file_name}): {abstract}"
-                                    retrieved_texts.append(abstract_context)
+                                abstract_context = f"Document Abstract ({file_name}): {abstract}"
+                                retrieved_texts.append(abstract_context)
 
-                                    
-                                    # Add abstract to retrieved content for the model
-                                    abstract_context = f"Document Abstract ({file_name}): {abstract}"
-                                    retrieved_texts.append(abstract_context)
-                                
-                                # Create citation for vision analysis if it exists
-                                vision_analysis = metadata.get('vision_analysis')
-                                if vision_analysis:
-                                    vision_citation_id = f"{doc_id}_vision"
-                                    
-                                    # Format vision analysis for citation display
-                                    vision_description = vision_analysis.get('description', '')
-                                    vision_objects = vision_analysis.get('objects', [])
-                                    vision_text = vision_analysis.get('text', '')
-                                    
-                                    vision_content = f"AI Vision Analysis:\n"
-                                    if vision_description:
-                                        vision_content += f"Description: {vision_description}\n"
-                                    if vision_objects:
-                                        vision_content += f"Objects: {', '.join(vision_objects)}\n"
-                                    if vision_text:
-                                        vision_content += f"Text in Image: {vision_text}\n"
-                                    
-                                    vision_citation = {
-                                        "file_name": file_name,
-                                        "citation_id": vision_citation_id,
-                                        "page_number": "AI Vision",  # Special page identifier
-                                        "chunk_id": vision_citation_id,
-                                        "chunk_sequence": 9997,  # High number to sort to end (before keywords/abstract)
-                                        "score": 0.0,  # No relevance score for vision analysis
-                                        "group_id": doc_group_id,
-                                        "version": doc.get('version', 'N/A'),
-                                        "classification": doc.get('document_classification'),
-                                        "metadata_type": "vision",  # Flag this as vision citation
-                                        "metadata_content": vision_content
-                                    }
-                                    hybrid_citations_list.append(vision_citation)
-                                    combined_documents.append(vision_citation)  # Add to combined_documents too
-                                    
-                                    # Add vision analysis to retrieved content for the model
-                                    vision_context = f"AI Vision Analysis ({file_name}): {vision_content}"
-                                    retrieved_texts.append(vision_context)
+                            # Create citation for vision analysis if it exists
+                            vision_analysis = metadata.get('vision_analysis')
+                            if vision_analysis:
+                                vision_citation_id = f"{doc_id}_vision"
+
+                                vision_description = vision_analysis.get('description', '')
+                                vision_objects = vision_analysis.get('objects', [])
+                                vision_text = vision_analysis.get('text', '')
+
+                                vision_content = "AI Vision Analysis:\n"
+                                if vision_description:
+                                    vision_content += f"Description: {vision_description}\n"
+                                if vision_objects:
+                                    vision_content += f"Objects: {', '.join(vision_objects)}\n"
+                                if vision_text:
+                                    vision_content += f"Text in Image: {vision_text}\n"
+
+                                vision_citation = {
+                                    "file_name": file_name,
+                                    "citation_id": vision_citation_id,
+                                    "page_number": "AI Vision",
+                                    "chunk_id": vision_citation_id,
+                                    "chunk_sequence": 9997,
+                                    "score": 0.0,
+                                    "group_id": doc_group_id,
+                                    "version": doc.get('version', 'N/A'),
+                                    "classification": doc.get('document_classification'),
+                                    "metadata_type": "vision",
+                                    "metadata_content": vision_content
+                                }
+                                hybrid_citations_list.append(vision_citation)
+                                combined_documents.append(vision_citation)
+
+                                vision_context = f"AI Vision Analysis ({file_name}): {vision_content}"
+                                retrieved_texts.append(vision_context)
 
                         
                         # Update the system prompt with the enhanced content including metadata
@@ -2712,6 +2567,7 @@ def register_route_backend_chats(app):
 
     @app.route('/api/chat/stream', methods=['POST'])
     @swagger_route(security=get_auth_security())
+    @chat_limit
     @login_required
     @user_required
     def chat_stream_api():
@@ -2877,69 +2733,17 @@ def register_route_backend_chats(app):
                 if isinstance(web_search_enabled, str):
                     web_search_enabled = web_search_enabled.lower() == 'true'
                 
-                # Initialize GPT client (simplified version)
+                # Initialize GPT client
                 gpt_model = ""
                 gpt_client = None
-                enable_gpt_apim = settings.get('enable_gpt_apim', False)
-                
+
                 try:
-                    if enable_gpt_apim:
-                        raw = settings.get('azure_apim_gpt_deployment', '')
-                        if not raw:
-                            yield f"data: {json.dumps({'error': 'APIM deployment not configured'})}\n\n"
-                            return
-                        
-                        apim_models = [m.strip() for m in raw.split(',') if m.strip()]
-                        if not apim_models:
-                            yield f"data: {json.dumps({'error': 'No valid APIM models configured'})}\n\n"
-                            return
-                        
-                        if frontend_gpt_model and frontend_gpt_model in apim_models:
-                            gpt_model = frontend_gpt_model
-                        else:
-                            gpt_model = apim_models[0]
-                        
-                        gpt_client = AzureOpenAI(
-                            api_version=settings.get('azure_apim_gpt_api_version'),
-                            azure_endpoint=settings.get('azure_apim_gpt_endpoint'),
-                            api_key=settings.get('azure_apim_gpt_subscription_key')
-                        )
-                    else:
-                        auth_type = settings.get('azure_openai_gpt_authentication_type')
-                        endpoint = settings.get('azure_openai_gpt_endpoint')
-                        api_version = settings.get('azure_openai_gpt_api_version')
-                        gpt_model_obj = settings.get('gpt_model', {})
-                        
-                        if gpt_model_obj and gpt_model_obj.get('selected'):
-                            gpt_model = gpt_model_obj['selected'][0]['deploymentName']
-                        else:
-                            gpt_model = settings.get('azure_openai_gpt_deployment', 'gpt-4o')
-                        
-                        if frontend_gpt_model:
-                            gpt_model = frontend_gpt_model
-                        
-                        if auth_type == 'managed_identity':
-                            credential = DefaultAzureCredential()
-                            token_provider = get_bearer_token_provider(
-                                credential,
-                                cognitive_services_scope
-                            )
-                            gpt_client = AzureOpenAI(
-                                api_version=api_version,
-                                azure_endpoint=endpoint,
-                                azure_ad_token_provider=token_provider
-                            )
-                        else:
-                            gpt_client = AzureOpenAI(
-                                api_version=api_version,
-                                azure_endpoint=endpoint,
-                                api_key=settings.get('azure_openai_gpt_key')
-                            )
-                    
+                    gpt_client, gpt_model = initialize_gpt_client(settings, frontend_gpt_model)
+
                     if not gpt_client or not gpt_model:
                         yield f"data: {json.dumps({'error': 'Failed to initialize AI model'})}\n\n"
                         return
-                        
+
                 except Exception as e:
                     yield f"data: {json.dumps({'error': f'Model initialization failed: {str(e)}'})}\n\n"
                     return
@@ -3227,115 +3031,120 @@ def register_route_backend_chats(app):
                         
                         # --- Extract metadata (keywords/abstract) for additional citations ---
                         if settings.get('enable_extract_meta_data', False):
-                            from functions_documents import get_document_metadata_for_citations
-                            
+                            from services.chunk_service import get_batch_document_metadata_for_citations
+
+                            # Collect unique documents and their workspace context
+                            doc_requests = []
                             processed_doc_ids = set()
-                            
+                            doc_context = {}
+
                             for doc in search_results:
                                 doc_id = doc.get('document_id') or doc.get('id')
                                 if not doc_id or doc_id in processed_doc_ids:
                                     continue
-                                
                                 processed_doc_ids.add(doc_id)
-                                
-                                file_name = doc.get('file_name', 'Unknown')
-                                doc_group_id = doc.get('group_id', None)
-                                
-                                # Map document_scope to correct parameter names for the function
                                 metadata_params = {'user_id': user_id}
                                 if document_scope == 'group':
                                     metadata_params['group_id'] = active_group_id
                                 elif document_scope == 'public':
                                     metadata_params['public_workspace_id'] = active_public_workspace_id
-                                
-                                metadata = get_document_metadata_for_citations(
-                                    doc_id, 
-                                    **metadata_params
-                                )
-                                
-                                if metadata:
-                                    keywords = metadata.get('keywords', [])
-                                    abstract = metadata.get('abstract', '')
-                                    
-                                    if keywords and len(keywords) > 0:
-                                        keywords_citation_id = f"{doc_id}_keywords"
-                                        keywords_text = ', '.join(keywords) if isinstance(keywords, list) else str(keywords)
-                                        
-                                        keywords_citation = {
-                                            "file_name": file_name,
-                                            "citation_id": keywords_citation_id,
-                                            "page_number": "Metadata",
-                                            "chunk_id": keywords_citation_id,
-                                            "chunk_sequence": 9999,
-                                            "score": 0.0,
-                                            "group_id": doc_group_id,
-                                            "version": doc.get('version', 'N/A'),
-                                            "classification": doc.get('document_classification'),
-                                            "metadata_type": "keywords",
-                                            "metadata_content": keywords_text
-                                        }
-                                        hybrid_citations_list.append(keywords_citation)
-                                        combined_documents.append(keywords_citation)
-                                        
-                                        keywords_context = f"Document Keywords ({file_name}): {keywords_text}"
-                                        retrieved_texts.append(keywords_context)
-                                    
-                                    if abstract and len(abstract.strip()) > 0:
-                                        abstract_citation_id = f"{doc_id}_abstract"
-                                        
-                                        abstract_citation = {
-                                            "file_name": file_name,
-                                            "citation_id": abstract_citation_id,
-                                            "page_number": "Metadata",
-                                            "chunk_id": abstract_citation_id,
-                                            "chunk_sequence": 9998,
-                                            "score": 0.0,
-                                            "group_id": doc_group_id,
-                                            "version": doc.get('version', 'N/A'),
-                                            "classification": doc.get('document_classification'),
-                                            "metadata_type": "abstract",
-                                            "metadata_content": abstract
-                                        }
-                                        hybrid_citations_list.append(abstract_citation)
-                                        combined_documents.append(abstract_citation)
-                                        
-                                        abstract_context = f"Document Abstract ({file_name}): {abstract}"
-                                        retrieved_texts.append(abstract_context)
-                                    
-                                    vision_analysis = metadata.get('vision_analysis')
-                                    if vision_analysis:
-                                        vision_citation_id = f"{doc_id}_vision"
-                                        
-                                        vision_description = vision_analysis.get('description', '')
-                                        vision_objects = vision_analysis.get('objects', [])
-                                        vision_text = vision_analysis.get('text', '')
-                                        
-                                        vision_content = f"AI Vision Analysis:\n"
-                                        if vision_description:
-                                            vision_content += f"Description: {vision_description}\n"
-                                        if vision_objects:
-                                            vision_content += f"Objects: {', '.join(vision_objects)}\n"
-                                        if vision_text:
-                                            vision_content += f"Text in Image: {vision_text}\n"
-                                        
-                                        vision_citation = {
-                                            "file_name": file_name,
-                                            "citation_id": vision_citation_id,
-                                            "page_number": "AI Vision",
-                                            "chunk_id": vision_citation_id,
-                                            "chunk_sequence": 9997,
-                                            "score": 0.0,
-                                            "group_id": doc_group_id,
-                                            "version": doc.get('version', 'N/A'),
-                                            "classification": doc.get('document_classification'),
-                                            "metadata_type": "vision",
-                                            "metadata_content": vision_content
-                                        }
-                                        hybrid_citations_list.append(vision_citation)
-                                        combined_documents.append(vision_citation)
-                                        
-                                        vision_context = f"AI Vision Analysis ({file_name}): {vision_content}"
-                                        retrieved_texts.append(vision_context)
+                                doc_requests.append({
+                                    'document_id': doc_id,
+                                    **metadata_params,
+                                })
+                                doc_context[doc_id] = doc
+
+                            # Batch fetch all metadata
+                            all_metadata = get_batch_document_metadata_for_citations(doc_requests)
+
+                            for doc_id, metadata in all_metadata.items():
+                                if not metadata:
+                                    continue
+                                doc = doc_context.get(doc_id, {})
+                                file_name = doc.get('file_name', 'Unknown')
+                                doc_group_id = doc.get('group_id', None)
+                                keywords = metadata.get('keywords', [])
+                                abstract = metadata.get('abstract', '')
+
+                                if keywords and len(keywords) > 0:
+                                    keywords_citation_id = f"{doc_id}_keywords"
+                                    keywords_text = ', '.join(keywords) if isinstance(keywords, list) else str(keywords)
+
+                                    keywords_citation = {
+                                        "file_name": file_name,
+                                        "citation_id": keywords_citation_id,
+                                        "page_number": "Metadata",
+                                        "chunk_id": keywords_citation_id,
+                                        "chunk_sequence": 9999,
+                                        "score": 0.0,
+                                        "group_id": doc_group_id,
+                                        "version": doc.get('version', 'N/A'),
+                                        "classification": doc.get('document_classification'),
+                                        "metadata_type": "keywords",
+                                        "metadata_content": keywords_text
+                                    }
+                                    hybrid_citations_list.append(keywords_citation)
+                                    combined_documents.append(keywords_citation)
+
+                                    keywords_context = f"Document Keywords ({file_name}): {keywords_text}"
+                                    retrieved_texts.append(keywords_context)
+
+                                if abstract and len(abstract.strip()) > 0:
+                                    abstract_citation_id = f"{doc_id}_abstract"
+
+                                    abstract_citation = {
+                                        "file_name": file_name,
+                                        "citation_id": abstract_citation_id,
+                                        "page_number": "Metadata",
+                                        "chunk_id": abstract_citation_id,
+                                        "chunk_sequence": 9998,
+                                        "score": 0.0,
+                                        "group_id": doc_group_id,
+                                        "version": doc.get('version', 'N/A'),
+                                        "classification": doc.get('document_classification'),
+                                        "metadata_type": "abstract",
+                                        "metadata_content": abstract
+                                    }
+                                    hybrid_citations_list.append(abstract_citation)
+                                    combined_documents.append(abstract_citation)
+
+                                    abstract_context = f"Document Abstract ({file_name}): {abstract}"
+                                    retrieved_texts.append(abstract_context)
+
+                                vision_analysis = metadata.get('vision_analysis')
+                                if vision_analysis:
+                                    vision_citation_id = f"{doc_id}_vision"
+
+                                    vision_description = vision_analysis.get('description', '')
+                                    vision_objects = vision_analysis.get('objects', [])
+                                    vision_text = vision_analysis.get('text', '')
+
+                                    vision_content = f"AI Vision Analysis:\n"
+                                    if vision_description:
+                                        vision_content += f"Description: {vision_description}\n"
+                                    if vision_objects:
+                                        vision_content += f"Objects: {', '.join(vision_objects)}\n"
+                                    if vision_text:
+                                        vision_content += f"Text in Image: {vision_text}\n"
+
+                                    vision_citation = {
+                                        "file_name": file_name,
+                                        "citation_id": vision_citation_id,
+                                        "page_number": "AI Vision",
+                                        "chunk_id": vision_citation_id,
+                                        "chunk_sequence": 9997,
+                                        "score": 0.0,
+                                        "group_id": doc_group_id,
+                                        "version": doc.get('version', 'N/A'),
+                                        "classification": doc.get('document_classification'),
+                                        "metadata_type": "vision",
+                                        "metadata_content": vision_content
+                                    }
+                                    hybrid_citations_list.append(vision_citation)
+                                    combined_documents.append(vision_citation)
+
+                                    vision_context = f"AI Vision Analysis ({file_name}): {vision_content}"
+                                    retrieved_texts.append(vision_context)
                         
                         retrieved_content = "\n\n".join(retrieved_texts)
                         system_prompt_search = f"""You are an AI assistant. Use the following retrieved document excerpts to answer the user's question. Cite sources using the format (Source: filename, Page: page number).
@@ -4086,476 +3895,3 @@ def register_route_backend_chats(app):
                 'details': error_traceback if app.debug else None
             }), 500
 
-
-def merge_masked_ranges(ranges):
-    """
-    Merge overlapping and adjacent masked ranges.
-    Preserves the earliest timestamp and user info for merged ranges.
-    """
-    if not ranges:
-        return []
-    
-    # Sort by start position
-    sorted_ranges = sorted(ranges, key=lambda x: x['start'])
-    merged = [sorted_ranges[0]]
-    
-    for current in sorted_ranges[1:]:
-        last_merged = merged[-1]
-        
-        # Check if current range overlaps or is adjacent to the last merged range
-        if current['start'] <= last_merged['end']:
-            # Merge: extend the end if current goes further
-            if current['end'] > last_merged['end']:
-                last_merged['end'] = current['end']
-                # Update text to cover merged range
-                last_merged['text'] = last_merged['text'] + current['text'][last_merged['end'] - current['start']:]
-            # Keep the earliest timestamp
-            if current['timestamp'] < last_merged['timestamp']:
-                last_merged['timestamp'] = current['timestamp']
-        else:
-            # No overlap, add as separate range
-            merged.append(current)
-    
-    return merged
-
-
-def remove_masked_content(content, masked_ranges):
-    """
-    Remove masked portions from message content.
-    Works backwards through sorted ranges to maintain correct offsets.
-    """
-    if not masked_ranges or not content:
-        return content
-    
-    # Sort ranges by start position (descending) to work backwards
-    sorted_ranges = sorted(masked_ranges, key=lambda x: x['start'], reverse=True)
-    
-    # Create a list from content for easier manipulation
-    result = content
-    
-    # Remove masked ranges working backwards to maintain offsets
-    for range_item in sorted_ranges:
-        start = range_item['start']
-        end = range_item['end']
-        
-        # Ensure indices are within bounds
-        if start < 0:
-            start = 0
-        if end > len(result):
-            end = len(result)
-        
-        # Remove the masked portion
-        if start < end:
-            result = result[:start] + result[end:]
-    
-    return result
-
-
-def _extract_web_search_citations_from_content(content: str) -> List[Dict[str, str]]:
-    if not content:
-        return []
-    debug_print(f"[Citation Extraction] Extracting citations from:\n{content}\n")
-
-    citations: List[Dict[str, str]] = []
-
-    markdown_pattern = re.compile(r"\[([^\]]+)\]\((https?://[^\s\)]+)(?:\s+\"([^\"]+)\")?\)")
-    html_pattern = re.compile(
-        r"<a[^>]+href=\"(https?://[^\"]+)\"([^>]*)>(.*?)</a>",
-        re.IGNORECASE | re.DOTALL,
-    )
-    title_pattern = re.compile(r"title=\"([^\"]+)\"", re.IGNORECASE)
-    url_pattern = re.compile(r"https?://[^\s\)\]\">]+")
-
-    occupied_spans: List[range] = []
-
-    for match in markdown_pattern.finditer(content):
-        text, url, title = match.groups()
-        url = (url or "").strip().rstrip(".,)")
-        if not url:
-            continue
-        display_title = (title or text or url).strip()
-        citations.append({"url": url, "title": display_title})
-        occupied_spans.append(range(match.start(), match.end()))
-
-    for match in html_pattern.finditer(content):
-        url, attrs, inner = match.groups()
-        url = (url or "").strip().rstrip(".,)")
-        if not url:
-            continue
-        title_match = title_pattern.search(attrs or "")
-        title = title_match.group(1) if title_match else None
-        inner_text = re.sub(r"<[^>]+>", "", inner or "").strip()
-        display_title = (title or inner_text or url).strip()
-        citations.append({"url": url, "title": display_title})
-        occupied_spans.append(range(match.start(), match.end()))
-
-    for match in url_pattern.finditer(content):
-        if any(match.start() in span for span in occupied_spans):
-            continue
-        url = (match.group(0) or "").strip().rstrip(".,)")
-        if not url:
-            continue
-        citations.append({"url": url, "title": url})
-    debug_print(f"[Citation Extraction] Extracted {len(citations)} citations. - {citations}\n")
-
-    return citations
-
-
-def _extract_token_usage_from_metadata(metadata: Dict[str, Any]) -> Dict[str, int]:
-    if not isinstance(metadata, Mapping):
-        debug_print(
-            "[Web Search][Token Usage Extraction] Metadata is not a mapping. "
-            f"type={type(metadata)}"
-        )
-        return {}
-
-    usage = metadata.get("usage")
-    if not usage:
-        debug_print("[Web Search][Token Usage Extraction] No usage field found in metadata.")
-        return {}
-
-    if isinstance(usage, str):
-        raw_usage = usage.strip()
-        if not raw_usage:
-            debug_print("[Web Search][Token Usage Extraction] Usage string was empty.")
-            return {}
-        try:
-            usage = json.loads(raw_usage)
-        except json.JSONDecodeError:
-            try:
-                usage = ast.literal_eval(raw_usage)
-            except (ValueError, SyntaxError):
-                debug_print(
-                    "[Web Search][Token Usage Extraction] Failed to parse usage string."
-                )
-                return {}
-
-    if not isinstance(usage, Mapping):
-        debug_print(
-            "[Web Search][Token Usage Extraction] Usage is not a mapping. "
-            f"type={type(usage)}"
-        )
-        return {}
-
-    def to_int(value: Any) -> Optional[int]:
-        try:
-            return int(float(value))
-        except (TypeError, ValueError):
-            return None
-
-    total_tokens = to_int(usage.get("total_tokens"))
-    if total_tokens is None:
-        debug_print(
-            "[Web Search][Token Usage Extraction] total_tokens missing or invalid. "
-            f"usage={usage}"
-        )
-        return {}
-
-    prompt_tokens = to_int(usage.get("prompt_tokens")) or 0
-    completion_tokens = to_int(usage.get("completion_tokens")) or 0
-    debug_print(
-        "[Web Search][Token Usage Extraction] Extracted token usage - "
-        f"prompt: {prompt_tokens}, completion: {completion_tokens}, total: {total_tokens}"
-    )
-
-    return {
-        "total_tokens": int(total_tokens),
-        "prompt_tokens": int(prompt_tokens),
-        "completion_tokens": int(completion_tokens),
-    }
-
-def perform_web_search(
-    *,
-    settings,
-    conversation_id,
-    user_id,
-    user_message,
-    user_message_id,
-    chat_type,
-    document_scope,
-    active_group_id,
-    active_public_workspace_id,
-    search_query,
-    system_messages_for_augmentation,
-    agent_citations_list,
-    web_search_citations_list,
-):
-    debug_print("[WebSearch] ========== ENTERING perform_web_search ==========")
-    debug_print(f"[WebSearch] Parameters received:")
-    debug_print(f"[WebSearch]   conversation_id: {conversation_id}")
-    debug_print(f"[WebSearch]   user_id: {user_id}")
-    debug_print(f"[WebSearch]   user_message: {user_message[:100] if user_message else None}...")
-    debug_print(f"[WebSearch]   user_message_id: {user_message_id}")
-    debug_print(f"[WebSearch]   chat_type: {chat_type}")
-    debug_print(f"[WebSearch]   document_scope: {document_scope}")
-    debug_print(f"[WebSearch]   active_group_id: {active_group_id}")
-    debug_print(f"[WebSearch]   active_public_workspace_id: {active_public_workspace_id}")
-    debug_print(f"[WebSearch]   search_query: {search_query[:100] if search_query else None}...")
-    
-    enable_web_search = settings.get("enable_web_search")
-    debug_print(f"[WebSearch] enable_web_search setting: {enable_web_search}")
-    
-    if not enable_web_search:
-        debug_print("[WebSearch] Web search is DISABLED in settings, returning early")
-        return True  # Not an error, just disabled
-
-    debug_print("[WebSearch] Web search is ENABLED, proceeding...")
-    
-    web_search_agent = settings.get("web_search_agent") or {}
-    debug_print(f"[WebSearch] web_search_agent config present: {bool(web_search_agent)}")
-    if web_search_agent:
-        # Avoid logging sensitive data, just log structure
-        debug_print(f"[WebSearch]   web_search_agent keys: {list(web_search_agent.keys())}")
-    
-    other_settings = web_search_agent.get("other_settings") or {}
-    debug_print(f"[WebSearch] other_settings keys: {list(other_settings.keys()) if other_settings else '<empty>'}")
-    
-    foundry_settings = other_settings.get("azure_ai_foundry") or {}
-    debug_print(f"[WebSearch] foundry_settings present: {bool(foundry_settings)}")
-    if foundry_settings:
-        # Log only non-sensitive keys
-        safe_keys = ['agent_id', 'project_id', 'endpoint']
-        safe_info = {k: foundry_settings.get(k, '<not set>') for k in safe_keys}
-        debug_print(f"[WebSearch]   foundry_settings (safe keys): {safe_info}")
-
-    agent_id = (foundry_settings.get("agent_id") or "").strip()
-    debug_print(f"[WebSearch] Extracted agent_id: '{agent_id}'")
-    
-    if not agent_id:
-        log_event(
-            "[WebSearch] Skipping Foundry web search: agent_id is not configured",
-            extra={
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-            },
-            level=logging.WARNING,
-        )
-        debug_print("[WebSearch] Foundry agent_id not configured, skipping web search.")
-        # Add failure message so the model knows search was requested but not configured
-        system_messages_for_augmentation.append({
-            "role": "system",
-            "content": "Web search was requested but is not properly configured. Please inform the user that web search is currently unavailable and you cannot provide real-time information. Do not attempt to answer questions requiring current information from your training data.",
-        })
-        return False  # Configuration error
-
-    debug_print(f"[WebSearch] Agent ID is configured: {agent_id}")
-    
-    query_text = None
-    try:
-        query_text = search_query
-        debug_print(f"[WebSearch] Using search_query as query_text: {query_text[:100] if query_text else None}...")
-    except NameError:
-        query_text = None
-        debug_print("[WebSearch] search_query not defined, query_text is None")
-
-    query_text = (query_text or user_message or "").strip()
-    debug_print(f"[WebSearch] Final query_text after fallback: '{query_text[:100] if query_text else ''}'")
-    
-    if not query_text:
-        debug_print("[WebSearch] Query text is EMPTY after processing, skipping web search")
-        log_event(
-            "[WebSearch] Skipping Foundry web search: empty query",
-            extra={
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-            },
-            level=logging.WARNING,
-        )
-        return True  # Not an error, just empty query
-
-    debug_print(f"[WebSearch] Building message history with query: {query_text[:100]}...")
-    message_history = [
-        ChatMessageContent(role="user", content=query_text)
-    ]
-    debug_print(f"[WebSearch] Message history created with {len(message_history)} message(s)")
-
-    try:
-        foundry_metadata = {
-            "conversation_id": conversation_id,
-            "user_id": user_id,
-            "message_id": user_message_id,
-            "chat_type": chat_type,
-            "document_scope": document_scope,
-            "group_id": active_group_id if chat_type == "group" else None,
-            "public_workspace_id": active_public_workspace_id,
-            "search_query": query_text,
-        }
-        debug_print(f"[WebSearch] Foundry metadata prepared: {json.dumps(foundry_metadata, default=str)}")
-        
-        debug_print("[WebSearch] Calling execute_foundry_agent...")
-        debug_print(f"[WebSearch]   foundry_settings keys: {list(foundry_settings.keys())}")
-        debug_print(f"[WebSearch]   global_settings type: {type(settings)}")
-        
-        result = asyncio.run(
-            execute_foundry_agent(
-                foundry_settings=foundry_settings,
-                global_settings=settings,
-                message_history=message_history,
-                metadata={k: v for k, v in foundry_metadata.items() if v is not None},
-            )
-        )
-    except FoundryAgentInvocationError as exc:
-        log_event(
-            f"[WebSearch] Foundry agent invocation failed: {exc}",
-            extra={
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "agent_id": agent_id,
-            },
-            level=logging.ERROR,
-            exceptionTraceback=True,
-        )
-        # Add failure message so the model informs the user
-        system_messages_for_augmentation.append({
-            "role": "system",
-            "content": f"Web search failed with error: {exc}. Please inform the user that the web search encountered an error and you cannot provide real-time information for this query. Do not attempt to answer questions requiring current information from your training data - instead, acknowledge the search failure and suggest the user try again.",
-        })
-        return False  # Search failed
-    except Exception as exc:
-        log_event(
-            f"[WebSearch] Unexpected error invoking Foundry agent: {exc}",
-            extra={
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "agent_id": agent_id,
-            },
-            level=logging.ERROR,
-            exceptionTraceback=True,
-        )
-        # Add failure message so the model informs the user
-        system_messages_for_augmentation.append({
-            "role": "system",
-            "content": f"Web search failed with an unexpected error: {exc}. Please inform the user that the web search encountered an error and you cannot provide real-time information for this query. Do not attempt to answer questions requiring current information from your training data - instead, acknowledge the search failure and suggest the user try again.",
-        })
-        return False  # Search failed
-
-    debug_print("[WebSearch] ========== FOUNDRY AGENT RESULT ==========")
-    debug_print(f"[WebSearch] Result type: {type(result)}")
-    debug_print(f"[WebSearch] Result has message: {bool(result.message)}")
-    debug_print(f"[WebSearch] Result has citations: {bool(result.citations)}")
-    debug_print(f"[WebSearch] Result has metadata: {bool(result.metadata)}")
-    debug_print(f"[WebSearch] Result model: {getattr(result, 'model', 'N/A')}")
-    
-    if result.message:
-        debug_print(f"[WebSearch] Result message length: {len(result.message)} chars")
-        debug_print(f"[WebSearch] Result message preview: {result.message[:500] if len(result.message) > 500 else result.message}")
-    else:
-        debug_print("[WebSearch] Result message is EMPTY or None")
-    
-    if result.citations:
-        debug_print(f"[WebSearch] Result citations count: {len(result.citations)}")
-        for i, cit in enumerate(result.citations[:3]):
-            debug_print(f"[WebSearch]   Citation {i}: {json.dumps(cit, default=str)[:200]}...")
-    else:
-        debug_print("[WebSearch] Result citations is EMPTY or None")
-    
-    if result.metadata:
-        try:
-            metadata_payload = json.dumps(result.metadata, default=str)
-        except (TypeError, ValueError):
-            metadata_payload = str(result.metadata)
-        debug_print(f"[WebSearch] Foundry metadata: {metadata_payload}")
-    else:
-        debug_print("[WebSearch] Foundry metadata: <empty>")
-
-    if result.message:
-        debug_print("[WebSearch] Adding result message to system_messages_for_augmentation")
-        system_messages_for_augmentation.append({
-            "role": "system",
-            "content": f"Web search results:\n{result.message}",
-        })
-        debug_print(f"[WebSearch] Added system message to augmentation list. Total augmentation messages: {len(system_messages_for_augmentation)}")
-
-        debug_print("[WebSearch] Extracting web citations from result message...")
-        web_citations = _extract_web_search_citations_from_content(result.message)
-        debug_print(f"[WebSearch] Extracted {len(web_citations)} web citations from message content")
-        if web_citations:
-            web_search_citations_list.extend(web_citations)
-            debug_print(f"[WebSearch] Total web_search_citations_list now has {len(web_search_citations_list)} citations")
-        else:
-            debug_print("[WebSearch] No web citations extracted from message content")
-    else:
-        debug_print("[WebSearch] No result.message to process for augmentation")
-
-    citations = result.citations or []
-    debug_print(f"[WebSearch] Processing {len(citations)} citations from result.citations")
-    if citations:
-        for i, citation in enumerate(citations):
-            debug_print(f"[WebSearch] Processing citation {i}: {json.dumps(citation, default=str)[:200]}...")
-            try:
-                serializable = json.loads(json.dumps(citation, default=str))
-            except (TypeError, ValueError):
-                serializable = {"value": str(citation)}
-            citation_title = serializable.get("title") or serializable.get("url") or "Web search source"
-            debug_print(f"[WebSearch] Adding agent citation with title: {citation_title}")
-            agent_citations_list.append({
-                "tool_name": citation_title,
-                "function_name": "azure_ai_foundry_web_search",
-                "plugin_name": "azure_ai_foundry",
-                "function_arguments": serializable,
-                "function_result": serializable,
-                "timestamp": datetime.utcnow().isoformat(),
-                "success": True,
-            })
-        debug_print(f"[WebSearch] Total agent_citations_list now has {len(agent_citations_list)} citations")
-    else:
-        debug_print("[WebSearch] No citations in result.citations to process")
-
-    debug_print(f"[WebSearch] Starting token usage extraction from Foundry metadata. Metadata: {result.metadata}")
-    token_usage = _extract_token_usage_from_metadata(result.metadata or {})
-    if token_usage.get("total_tokens"):
-        try:
-            workspace_type = 'personal'
-            if active_public_workspace_id:
-                workspace_type = 'public'
-            elif active_group_id:
-                workspace_type = 'group'
-
-            log_token_usage(
-                user_id=user_id,
-                token_type='web_search',
-                total_tokens=token_usage.get('total_tokens', 0),
-                model=result.model or 'azure-ai-foundry-web-search',
-                workspace_type=workspace_type,
-                prompt_tokens=token_usage.get('prompt_tokens'),
-                completion_tokens=token_usage.get('completion_tokens'),
-                conversation_id=conversation_id,
-                message_id=user_message_id,
-                group_id=active_group_id,
-                public_workspace_id=active_public_workspace_id,
-                additional_context={
-                    'agent_id': agent_id,
-                    'search_query': query_text,
-                    'token_source': 'foundry_metadata'
-                }
-            )
-        except Exception as log_error:
-            log_event(
-                f"[WebSearch] Failed to log web search token usage: {log_error}",
-                extra={
-                    "conversation_id": conversation_id,
-                    "user_id": user_id,
-                    "agent_id": agent_id,
-                },
-                level=logging.WARNING,
-            )
-
-    debug_print("[WebSearch] ========== FINAL SUMMARY ==========")
-    debug_print(f"[WebSearch] system_messages_for_augmentation count: {len(system_messages_for_augmentation)}")
-    debug_print(f"[WebSearch] agent_citations_list count: {len(agent_citations_list)}")
-    debug_print(f"[WebSearch] web_search_citations_list count: {len(web_search_citations_list)}")
-    debug_print(f"[WebSearch] Token usage extracted: {token_usage}")
-    debug_print("[WebSearch] ========== EXITING perform_web_search ==========")
-    
-    log_event(
-        "[WebSearch] Foundry web search invocation complete",
-        extra={
-            "conversation_id": conversation_id,
-            "user_id": user_id,
-            "agent_id": agent_id,
-            "citation_count": len(citations),
-        },
-        level=logging.INFO,
-    )
-    
-    return True  # Search succeeded

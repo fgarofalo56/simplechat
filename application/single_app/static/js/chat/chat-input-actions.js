@@ -247,8 +247,12 @@ export function showFileContentPopup(fileContent, filename, isTable) {
         fileContentElement.innerHTML = '<p>No data available</p>';
       }
     } else {
-      // Legacy HTML format
-      fileContentElement.innerHTML = `<div class="table-responsive">${fileContent}</div>`;
+      // Legacy HTML format — sanitize with DOMPurify if available, otherwise escape
+      if (typeof DOMPurify !== 'undefined') {
+        fileContentElement.innerHTML = `<div class="table-responsive">${DOMPurify.sanitize(fileContent)}</div>`;
+      } else {
+        fileContentElement.innerHTML = `<div class="table-responsive">${escapeHtml(fileContent)}</div>`;
+      }
     }
     
     // Apply DataTable after content is set
@@ -263,7 +267,7 @@ export function showFileContentPopup(fileContent, filename, isTable) {
       }
     });
   } else {
-    fileContentElement.innerHTML = `<pre style="white-space: pre-wrap;">${fileContent}</pre>`;
+    fileContentElement.innerHTML = `<pre style="white-space: pre-wrap;">${escapeHtml(fileContent)}</pre>`;
   }
 
   const modal = new bootstrap.Modal(modalContainer);

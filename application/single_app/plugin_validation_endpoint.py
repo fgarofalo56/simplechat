@@ -10,6 +10,7 @@ from functions_appinsights import log_event
 from functions_authentication import login_required, admin_required
 from swagger_wrapper import swagger_route, get_auth_security
 import logging
+from functions_debug import debug_print
 
 
 plugin_validation_bp = Blueprint('plugin_validation', __name__)
@@ -289,7 +290,7 @@ def repair_plugin(plugin_name):
                     del settings['semantic_kernel_plugins']
                     update_settings(settings)
             except Exception as e:
-                print(f"Error updating plugin in container storage: {e}")
+                debug_print(f"Error updating plugin in container storage: {e}")
                 # Fallback to settings update if container fails
                 settings['semantic_kernel_plugins'] = plugins
                 update_settings(settings)
@@ -326,7 +327,7 @@ def repair_plugin(plugin_name):
                         del settings['semantic_kernel_plugins']
                         update_settings(settings)
                 except Exception as e:
-                    print(f"Error updating plugin in container storage: {e}")
+                    debug_print(f"Error updating plugin in container storage: {e}")
                     # Fallback to settings update if container fails
                     settings['semantic_kernel_plugins'] = plugins
                     update_settings(settings)

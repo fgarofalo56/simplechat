@@ -603,13 +603,13 @@ function updateCuratedListStatus() {
   $("#saveVisibleListBtn").on("click", function() {
     const listName = $("#saveListName").val().trim();
     if (!listName) {
-      alert("Please enter a name for your list.");
+      showGlobalToast("Please enter a name for your list.", "warning");
       return;
     }
     saveCurrentVisibleList(listName);
     refreshVisibleListDropdown();
     $("#saveListName").val("");
-    alert("List saved!");
+    showGlobalToast("List saved!", "success");
     updateCuratedListStatus();
   });
 
@@ -617,7 +617,7 @@ function updateCuratedListStatus() {
   $("#loadVisibleListBtn").on("click", function() {
     const listName = $("#loadVisibleListSelect").val();
     if (!listName) {
-      alert("Please select a list to load.");
+      showGlobalToast("Please select a list to load.", "warning");
       return;
     }
     applyVisibleList(listName);
@@ -646,15 +646,17 @@ function updateCuratedListStatus() {
   $("#deleteVisibleListBtn").on("click", function() {
     const listName = $("#loadVisibleListSelect").val();
     if (!listName) {
-      alert("Please select a list to delete.");
+      showGlobalToast("Please select a list to delete.", "warning");
       return;
     }
-    if (confirm(`Delete list "${listName}"? This cannot be undone.`)) {
+    (async () => {
+    if (await showGlobalConfirm(`Delete list "${listName}"? This cannot be undone.`, 'Delete List')) {
       deleteVisibleList(listName);
       refreshVisibleListDropdown();
-      alert("List deleted.");
+      showGlobalToast("List deleted.", "success");
       updateCuratedListStatus();
     }
+    })();
   });
 
   // Initialize - load user settings first, then fetch workspaces

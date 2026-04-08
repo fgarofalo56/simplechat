@@ -213,7 +213,7 @@
                 resetBuilder();
                 loadSkills();
             } catch (err) {
-                alert('Error saving skill: ' + err.message);
+                showGlobalToast('Error saving skill: ' + err.message, 'danger');
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Save Skill';
@@ -227,7 +227,7 @@
         const description = document.getElementById('skill-description')?.value?.trim();
 
         if (!displayName || !name || !description) {
-            alert('Please fill in all required fields (name, command, description)');
+            showGlobalToast('Please fill in all required fields (name, command, description)', 'warning');
             showStep(1);
             return null;
         }
@@ -264,7 +264,7 @@
         testBtn.addEventListener('click', async () => {
             const input = document.getElementById('skill-test-input')?.value?.trim();
             if (!input) {
-                alert('Please enter sample input to test');
+                showGlobalToast('Please enter sample input to test', 'warning');
                 return;
             }
 
@@ -349,7 +349,7 @@
     }
 
     async function deleteSkill(skill) {
-        if (!confirm(`Delete skill "${skill.display_name}"? This cannot be undone.`)) return;
+        if (!await showGlobalConfirm(`Delete skill "${skill.display_name}"? This cannot be undone.`, "Delete Skill")) return;
 
         try {
             const resp = await fetch(`/api/skills/${skill.id}?workspace_id=${skill.workspace_id}`, {
@@ -361,7 +361,7 @@
             }
             loadSkills();
         } catch (err) {
-            alert('Error deleting skill: ' + err.message);
+            showGlobalToast('Error deleting skill: ' + err.message, 'danger');
         }
     }
 

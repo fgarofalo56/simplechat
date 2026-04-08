@@ -216,7 +216,7 @@
 <!-- Using jQuery consistent with other updated admin pages -->
 <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 <!-- Assumes Bootstrap JS is in base.html -->
-<script>
+<script nonce="{{ csp_nonce }}">
   // Helper function (optional but recommended)
   function escapeHtml(unsafe) {
     if (unsafe === null || typeof unsafe === 'undefined') return '';

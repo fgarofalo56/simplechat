@@ -8,6 +8,7 @@ from functions_activity_logging import log_web_search_consent_acceptance
 from functions_logging import *
 from swagger_wrapper import swagger_route, get_auth_security
 from datetime import datetime, timedelta
+from functions_debug import debug_print
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
@@ -216,7 +217,7 @@ def register_route_frontend_admin_settings(app):
                      # Your logic to list deployments
                      pass # Replace with actual logic
             except Exception as e:
-                 print(f"Error retrieving GPT deployments: {e}")
+                 debug_print(f"Error retrieving GPT deployments: {e}")
                  log_event(f"Error retrieving GPT deployments: {e}", level=logging.ERROR)
 
             # Check for application updates
@@ -259,7 +260,7 @@ def register_route_frontend_admin_settings(app):
                         update_settings(new_settings)
                         settings.update(new_settings)
                 except Exception as e:
-                    print(f"Error checking for updates: {e}")
+                    debug_print(f"Error checking for updates: {e}")
                     log_event(f"Error checking for updates: {e}", level=logging.ERROR)
             
             # Get the persisted values for template rendering
@@ -356,12 +357,12 @@ def register_route_frontend_admin_settings(app):
                         {'label': item['label'].strip(), 'color': item['color']}
                         for item in parsed_categories_raw
                     ]
-                    print(f"Successfully parsed {len(parsed_categories)} classification categories.")
+                    debug_print(f"Successfully parsed {len(parsed_categories)} classification categories.")
                 else:
                      raise ValueError("Invalid format: Expected a list of objects with 'label' and 'color' keys.")
 
             except (json.JSONDecodeError, ValueError) as e:
-                print(f"Error processing document_classification_categories_json: {e}")
+                debug_print(f"Error processing document_classification_categories_json: {e}")
                 flash(f'Error processing classification categories: {e}. Changes for categories not saved.', 'danger')
                 # Keep existing categories from the database instead of overwriting with bad data
                 parsed_categories = settings.get('document_classification_categories', []) # Fallback to existing
@@ -394,12 +395,12 @@ def register_route_frontend_admin_settings(app):
                         {'label': item['label'].strip(), 'url': item['url'].strip()}
                         for item in parsed_external_links_raw
                     ]
-                    print(f"Successfully parsed {len(parsed_external_links)} external links.")
+                    debug_print(f"Successfully parsed {len(parsed_external_links)} external links.")
                 else:
                      raise ValueError("Invalid format: Expected a list of objects with 'label' and 'url' keys.")
 
             except (json.JSONDecodeError, ValueError) as e:
-                print(f"Error processing external_links_json: {e}")
+                debug_print(f"Error processing external_links_json: {e}")
                 flash(f'Error processing external links: {e}. Changes for external links not saved.', 'danger')
                 # Keep existing external links from the database instead of overwriting with bad data
                 parsed_external_links = settings.get('external_links', []) # Fallback to existing
@@ -422,7 +423,7 @@ def register_route_frontend_admin_settings(app):
             try:
                 gpt_model_obj = json.loads(gpt_model_json) if gpt_model_json else {'selected': [], 'all': []}
             except Exception as e:
-                print(f"Error parsing gpt_model_json: {e}")
+                debug_print(f"Error parsing gpt_model_json: {e}")
                 flash('Error parsing GPT model data. Changes may not be saved.', 'warning')
                 log_event(f"Error parsing GPT model data: {e}", level=logging.ERROR)
                 gpt_model_obj = settings.get('gpt_model', {'selected': [], 'all': []}) # Fallback
@@ -430,14 +431,14 @@ def register_route_frontend_admin_settings(app):
             try:
                 embedding_model_obj = json.loads(embedding_model_json) if embedding_model_json else {'selected': [], 'all': []}
             except Exception as e:
-                print(f"Error parsing embedding_model_json: {e}")
+                debug_print(f"Error parsing embedding_model_json: {e}")
                 flash('Error parsing Embedding model data. Changes may not be saved.', 'warning')
                 log_event(f"Error parsing Embedding model data: {e}", level=logging.ERROR)
                 embedding_model_obj = settings.get('embedding_model', {'selected': [], 'all': []}) # Fallback
             try:
                 image_gen_model_obj = json.loads(image_gen_model_json) if image_gen_model_json else {'selected': [], 'all': []}
             except Exception as e:
-                print(f"Error parsing image_gen_model_json: {e}")
+                debug_print(f"Error parsing image_gen_model_json: {e}")
                 flash('Error parsing Image Gen model data. Changes may not be saved.', 'warning')
                 log_event(f"Error parsing Image Gen model data: {e}", level=logging.ERROR)
                 image_gen_model_obj = settings.get('image_gen_model', {'selected': [], 'all': []}) # Fallback
@@ -981,6 +982,7 @@ def register_route_frontend_admin_settings(app):
 
                     # 3) Load into Pillow from the original bytes for processing
                     in_memory_for_process = BytesIO(file_bytes) # Use original bytes
+                    from PIL import Image  # Lazy import — only needed for image upload processing
                     img = Image.open(in_memory_for_process)
                     
                     add_file_task_to_file_processing_log(
@@ -1045,7 +1047,7 @@ def register_route_frontend_admin_settings(app):
 
 
                 except Exception as e:
-                    print(f"Error processing logo file: {e}") # Log the error for debugging
+                    debug_print(f"Error processing logo file: {e}") # Log the error for debugging
                     flash(f"Error processing logo file: {e}. Existing logo preserved.", "danger")
                     log_event(f"Error processing logo file: {e}", level=logging.ERROR)
 
@@ -1128,7 +1130,7 @@ def register_route_frontend_admin_settings(app):
 
 
                 except Exception as e:
-                    print(f"Error processing dark mode logo file: {e}") # Log the error for debugging
+                    debug_print(f"Error processing dark mode logo file: {e}") # Log the error for debugging
                     flash(f"Error processing dark mode logo file: {e}. Existing dark mode logo preserved.", "danger")
                     log_event(f"Error processing dark mode logo file: {e}", level=logging.ERROR)
 
@@ -1202,7 +1204,7 @@ def register_route_frontend_admin_settings(app):
                     new_settings['favicon_version'] = current_version + 1 # Increment
 
                 except Exception as e:
-                    print(f"Error processing favicon file: {e}") # Log the error for debugging
+                    debug_print(f"Error processing favicon file: {e}") # Log the error for debugging
                     flash(f"Error processing favicon file: {e}. Existing favicon preserved.", "danger")
                     log_event(f"Error processing favicon file: {e}", level=logging.ERROR)
 
@@ -1221,7 +1223,7 @@ def register_route_frontend_admin_settings(app):
                     ensure_custom_favicon_file_exists(app, updated_settings_for_file)
                     initialize_clients(updated_settings_for_file) # Important - reinitialize clients with new settings
                 else:
-                    print("ERROR: Could not fetch settings after update to ensure logo/favicon files.")
+                    debug_print("ERROR: Could not fetch settings after update to ensure logo/favicon files.")
 
             else:
                 flash("Failed to update admin settings.", "danger")

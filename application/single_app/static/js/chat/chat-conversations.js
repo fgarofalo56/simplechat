@@ -1026,8 +1026,8 @@ export function highlightSelectedConversation(conversationId) {
 }
 
 // Delete a conversation
-export function deleteConversation(conversationId) {
-  if (!confirm("Are you sure you want to delete this conversation? This action cannot be undone.")) {
+export async function deleteConversation(conversationId) {
+  if (!await showGlobalConfirm("Are you sure you want to delete this conversation? This action cannot be undone.", "Delete Conversation")) {
     return;
   }
 
@@ -1175,7 +1175,7 @@ function updateSelectedConversations(conversationId, isSelected) {
 async function bulkPinConversations() {
   if (selectedConversations.size === 0) return;
   
-  const action = confirm(`Pin ${selectedConversations.size} conversation(s)?`) ? 'pin' : null;
+  const action = (await showGlobalConfirm(`Pin ${selectedConversations.size} conversation(s)?`, "Pin Conversations")) ? 'pin' : null;
   if (!action) return;
   
   const conversationIds = Array.from(selectedConversations);
@@ -1222,7 +1222,7 @@ async function bulkPinConversations() {
 async function bulkHideConversations() {
   if (selectedConversations.size === 0) return;
   
-  const action = confirm(`Hide ${selectedConversations.size} conversation(s)?`) ? 'hide' : null;
+  const action = (await showGlobalConfirm(`Hide ${selectedConversations.size} conversation(s)?`, "Hide Conversations")) ? 'hide' : null;
   if (!action) return;
   
   const conversationIds = Array.from(selectedConversations);
@@ -1269,7 +1269,7 @@ async function bulkHideConversations() {
 async function deleteSelectedConversations() {
   if (selectedConversations.size === 0) return;
   
-  if (!confirm(`Are you sure you want to delete ${selectedConversations.size} conversation(s)? This action cannot be undone.`)) {
+  if (!await showGlobalConfirm(`Are you sure you want to delete ${selectedConversations.size} conversation(s)? This action cannot be undone.`, "Delete Conversations")) {
     return;
   }
   

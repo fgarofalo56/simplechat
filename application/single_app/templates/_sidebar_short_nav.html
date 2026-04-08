@@ -171,7 +171,7 @@
       <a class="btn btn-outline-primary w-100" href="{{ url_for('login') }}">Login</a>
     {% endif %}
   </div>
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // Collapsible Conversations Section (for chats page)
     document.addEventListener('DOMContentLoaded', function() {
       var conversationsToggle = document.getElementById('conversations-toggle');

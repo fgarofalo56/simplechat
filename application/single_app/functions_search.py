@@ -1,6 +1,7 @@
 # functions_search.py
 
 import logging
+import re
 from typing import List, Dict, Any
 from config import *
 from functions_content import *
@@ -14,6 +15,29 @@ from utils_cache import (
 from functions_debug import *
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_odata_value(value: str) -> str:
+    """Sanitize a string value for safe use in OData filter expressions.
+
+    Prevents OData injection by escaping single quotes (the OData string
+    delimiter) and stripping characters that could alter filter semantics.
+    Valid OData string values should only contain the escaped content.
+
+    Args:
+        value: The raw string to sanitize (e.g. a document_id or user_id).
+
+    Returns:
+        A string safe for interpolation inside OData single-quoted literals.
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    # OData escapes single quotes by doubling them
+    value = value.replace("'", "''")
+    # Strip any characters that could break out of the filter expression
+    # Allow alphanumeric, hyphens, underscores, dots, @, spaces (covers UUIDs, emails, names)
+    value = re.sub(r"[^\w\-\.@ ]", "", value)
+    return value
 
 
 def normalize_scores(results: List[Dict[str, Any]], index_name: str = "unknown") -> List[Dict[str, Any]]:
@@ -120,13 +144,13 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
     elif document_id:
         document_ids = [document_id]
 
-    # Build document ID filter clause
+    # Build document ID filter clause (sanitized against OData injection)
     doc_id_filter = None
     if document_ids and len(document_ids) > 0:
         if len(document_ids) == 1:
-            doc_id_filter = f"document_id eq '{document_ids[0]}'"
+            doc_id_filter = f"document_id eq '{sanitize_odata_value(document_ids[0])}'"
         else:
-            conditions = " or ".join([f"document_id eq '{did}'" for did in document_ids])
+            conditions = " or ".join([f"document_id eq '{sanitize_odata_value(did)}'" for did in document_ids])
             doc_id_filter = f"({conditions})"
     
     # Generate cache key including document set fingerprints and tags filter
@@ -204,9 +228,9 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             # Build user filter with optional tags
             user_base_filter = (
                 (
-                    f"(user_id eq '{user_id}' or shared_user_ids/any(u: u eq '{user_id},approved')) "
+                    f"(user_id eq '{sanitize_odata_value(user_id)}' or shared_user_ids/any(u: u eq '{sanitize_odata_value(user_id)},approved')) "
                     if enable_file_sharing else
-                    f"user_id eq '{user_id}' "
+                    f"user_id eq '{sanitize_odata_value(user_id)}' "
                 ) +
                 f"and {doc_id_filter}"
             )
@@ -225,8 +249,8 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
 
             # Only search group index if active_group_ids is provided
             if active_group_ids:
-                group_conditions = " or ".join([f"group_id eq '{gid}'" for gid in active_group_ids])
-                shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{gid},approved')" for gid in active_group_ids])
+                group_conditions = " or ".join([f"group_id eq '{sanitize_odata_value(gid)}'" for gid in active_group_ids])
+                shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{sanitize_odata_value(gid)},approved')" for gid in active_group_ids])
                 group_base_filter = f"({group_conditions} or {shared_conditions}) and {doc_id_filter}"
                 group_filter = f"{group_base_filter} and {tags_filter_clause}" if tags_filter_clause else group_base_filter
 
@@ -249,11 +273,11 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             # Create filter for visible public workspaces
             if visible_public_workspace_ids:
                 # Use 'or' conditions instead of 'in' operator for OData compatibility
-                workspace_conditions = " or ".join([f"public_workspace_id eq '{id}'" for id in visible_public_workspace_ids])
+                workspace_conditions = " or ".join([f"public_workspace_id eq '{sanitize_odata_value(id)}'" for id in visible_public_workspace_ids])
                 public_base_filter = f"({workspace_conditions}) and {doc_id_filter}"
             else:
                 # Fallback to active_public_workspace_id if no visible workspaces
-                public_base_filter = f"public_workspace_id eq '{active_public_workspace_id}' and {doc_id_filter}"
+                public_base_filter = f"public_workspace_id eq '{sanitize_odata_value(active_public_workspace_id)}' and {doc_id_filter}"
             
             public_filter = f"{public_base_filter} and {tags_filter_clause}" if tags_filter_clause else public_base_filter
                 
@@ -270,9 +294,9 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
         else:
             # Build user filter with optional tags
             user_base_filter = (
-                f"(user_id eq '{user_id}' or shared_user_ids/any(u: u eq '{user_id},approved')) "
+                f"(user_id eq '{sanitize_odata_value(user_id)}' or shared_user_ids/any(u: u eq '{sanitize_odata_value(user_id)},approved')) "
                 if enable_file_sharing else
-                f"user_id eq '{user_id}' "
+                f"user_id eq '{sanitize_odata_value(user_id)}' "
             )
             user_filter = f"{user_base_filter} and {tags_filter_clause}" if tags_filter_clause else user_base_filter.strip()
             
@@ -289,8 +313,8 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
 
             # Only search group index if active_group_ids is provided
             if active_group_ids:
-                group_conditions = " or ".join([f"group_id eq '{gid}'" for gid in active_group_ids])
-                shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{gid},approved')" for gid in active_group_ids])
+                group_conditions = " or ".join([f"group_id eq '{sanitize_odata_value(gid)}'" for gid in active_group_ids])
+                shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{sanitize_odata_value(gid)},approved')" for gid in active_group_ids])
                 group_base_filter = f"({group_conditions} or {shared_conditions})"
                 group_filter = f"{group_base_filter} and {tags_filter_clause}" if tags_filter_clause else group_base_filter
 
@@ -313,11 +337,11 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             # Create filter for visible public workspaces
             if visible_public_workspace_ids:
                 # Use 'or' conditions instead of 'in' operator for OData compatibility
-                workspace_conditions = " or ".join([f"public_workspace_id eq '{id}'" for id in visible_public_workspace_ids])
+                workspace_conditions = " or ".join([f"public_workspace_id eq '{sanitize_odata_value(id)}'" for id in visible_public_workspace_ids])
                 public_base_filter = f"({workspace_conditions})"
             else:
                 # Fallback to active_public_workspace_id if no visible workspaces
-                public_base_filter = f"public_workspace_id eq '{active_public_workspace_id}'"
+                public_base_filter = f"public_workspace_id eq '{sanitize_odata_value(active_public_workspace_id)}'"
             
             public_filter = f"{public_base_filter} and {tags_filter_clause}" if tags_filter_clause else public_base_filter
                 
@@ -366,9 +390,9 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
                 vector_queries=[vector_query],
                 filter=(
                     (
-                        f"(user_id eq '{user_id}' or shared_user_ids/any(u: u eq '{user_id},approved')) "
+                        f"(user_id eq '{sanitize_odata_value(user_id)}' or shared_user_ids/any(u: u eq '{sanitize_odata_value(user_id)},approved')) "
                         if enable_file_sharing else
-                        f"user_id eq '{user_id}' "
+                        f"user_id eq '{sanitize_odata_value(user_id)}' "
                     ) +
                     f"and {doc_id_filter}"
                 ),
@@ -384,9 +408,9 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
                 search_text=query,
                 vector_queries=[vector_query],
                 filter=(
-                    f"(user_id eq '{user_id}' or shared_user_ids/any(u: u eq '{user_id},approved')) "
+                    f"(user_id eq '{sanitize_odata_value(user_id)}' or shared_user_ids/any(u: u eq '{sanitize_odata_value(user_id)},approved')) "
                     if enable_file_sharing else
-                    f"user_id eq '{user_id}' "
+                    f"user_id eq '{sanitize_odata_value(user_id)}' "
                 ),
                 query_type="semantic",
                 semantic_configuration_name="nexus-user-index-semantic-configuration",
@@ -400,8 +424,8 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
         if not active_group_ids:
             results = []
         elif doc_id_filter:
-            group_conditions = " or ".join([f"group_id eq '{gid}'" for gid in active_group_ids])
-            shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{gid},approved')" for gid in active_group_ids])
+            group_conditions = " or ".join([f"group_id eq '{sanitize_odata_value(gid)}'" for gid in active_group_ids])
+            shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{sanitize_odata_value(gid)},approved')" for gid in active_group_ids])
             group_results = search_client_group.search(
                 search_text=query,
                 vector_queries=[vector_query],
@@ -416,8 +440,8 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             )
             results = extract_search_results(group_results, top_n)
         else:
-            group_conditions = " or ".join([f"group_id eq '{gid}'" for gid in active_group_ids])
-            shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{gid},approved')" for gid in active_group_ids])
+            group_conditions = " or ".join([f"group_id eq '{sanitize_odata_value(gid)}'" for gid in active_group_ids])
+            shared_conditions = " or ".join([f"shared_group_ids/any(g: g eq '{sanitize_odata_value(gid)},approved')" for gid in active_group_ids])
             group_results = search_client_group.search(
                 search_text=query,
                 vector_queries=[vector_query],
@@ -440,11 +464,11 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             # Create filter for visible public workspaces
             if visible_public_workspace_ids:
                 # Use 'or' conditions instead of 'in' operator for OData compatibility
-                workspace_conditions = " or ".join([f"public_workspace_id eq '{id}'" for id in visible_public_workspace_ids])
+                workspace_conditions = " or ".join([f"public_workspace_id eq '{sanitize_odata_value(id)}'" for id in visible_public_workspace_ids])
                 public_filter = f"({workspace_conditions}) and {doc_id_filter}"
             else:
                 # Fallback to active_public_workspace_id if no visible workspaces
-                public_filter = f"public_workspace_id eq '{active_public_workspace_id}' and {doc_id_filter}"
+                public_filter = f"public_workspace_id eq '{sanitize_odata_value(active_public_workspace_id)}' and {doc_id_filter}"
                 
             public_results = search_client_public.search(
                 search_text=query,
@@ -464,11 +488,11 @@ def hybrid_search(query, user_id, document_id=None, document_ids=None, top_n=12,
             # Create filter for visible public workspaces
             if visible_public_workspace_ids:
                 # Use 'or' conditions instead of 'in' operator for OData compatibility
-                workspace_conditions = " or ".join([f"public_workspace_id eq '{id}'" for id in visible_public_workspace_ids])
+                workspace_conditions = " or ".join([f"public_workspace_id eq '{sanitize_odata_value(id)}'" for id in visible_public_workspace_ids])
                 public_filter = f"({workspace_conditions})"
             else:
                 # Fallback to active_public_workspace_id if no visible workspaces
-                public_filter = f"public_workspace_id eq '{active_public_workspace_id}'"
+                public_filter = f"public_workspace_id eq '{sanitize_odata_value(active_public_workspace_id)}'"
                 
             public_results = search_client_public.search(
                 search_text=query,

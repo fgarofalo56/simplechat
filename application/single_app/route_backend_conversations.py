@@ -29,16 +29,18 @@ def register_route_backend_conversations(app):
             )
             # Query all messages in cosmos_messages_container
             # We'll filter for active_thread in Python since Cosmos DB boolean queries can be tricky
-            message_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
+            message_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
                 ORDER BY c.timestamp ASC
             """
-            
+            params = [{"name": "@conversation_id", "value": conversation_id}]
+
             debug_print(f"Executing query: {message_query}")
-            
+
             all_items = list(cosmos_messages_container.query_items(
                 query=message_query,
+                parameters=params,
                 partition_key=conversation_id
             ))
             
@@ -117,9 +119,9 @@ def register_route_backend_conversations(app):
                                 complete_content += chunk_content
                                 debug_print(f"Added chunk {chunk_index}, length: {len(chunk_content)} bytes")
                             else:
-                                print(f"WARNING: Missing chunk {chunk_index} for image {image_id}")
+                                debug_print(f"[IMAGES] WARNING: Missing chunk {chunk_index} for image {image_id}")
                     else:
-                        print(f"WARNING: No chunks found for image {image_id} in chunked_images")
+                        debug_print(f"[IMAGES] WARNING: No chunks found for image {image_id} in chunked_images")
                     
                     debug_print(f"Final reassembled image total size: {len(complete_content)} bytes")
                     
@@ -148,7 +150,7 @@ def register_route_backend_conversations(app):
         except CosmosResourceNotFoundError:
             return jsonify({'messages': []})
         except Exception as e:
-            print(f"ERROR: Failed to get messages: {str(e)}")
+            debug_print(f"[MESSAGES] ERROR: Failed to get messages: {str(e)}")
             return jsonify({'error': 'Conversation not found'}), 404
 
     @app.route('/api/image/<image_id>', methods=['GET'])
@@ -157,13 +159,11 @@ def register_route_backend_conversations(app):
     @user_required
     def api_get_image(image_id):
         """Serve large images that were stored in chunks"""
-        print(f"🔥 IMAGE ENDPOINT CALLED: {image_id}")
-        print(f"🔥 Request URL: {request.url}")
-        print(f"🔥 Request headers: {dict(request.headers)}")
-        
+        debug_print(f"[IMAGES] Serving image: {image_id}")
+
         user_id = get_current_user_id()
         if not user_id:
-            print(f"🔥 Authentication failed for image request")
+            debug_print("[IMAGES] Authentication failed for image request")
             return jsonify({'error': 'User not authenticated'}), 401
             
         try:
@@ -178,9 +178,11 @@ def register_route_backend_conversations(app):
             debug_print(f"Serving image {image_id} from conversation {conversation_id}")
             
             # Query for the main image document and chunks
-            message_query = f"SELECT * FROM c WHERE c.conversation_id = '{conversation_id}'"
+            message_query = "SELECT * FROM c WHERE c.conversation_id = @conversation_id"
+            params = [{"name": "@conversation_id", "value": conversation_id}]
             all_items = list(cosmos_messages_container.query_items(
                 query=message_query,
+                parameters=params,
                 partition_key=conversation_id
             ))
             
@@ -213,7 +215,7 @@ def register_route_backend_conversations(app):
             debug_print(f"Found chunks: {list(chunks.keys())}")
             
             if not main_image:
-                print(f"ERROR: Main image not found for {image_id}")
+                debug_print(f"[IMAGES] ERROR: Main image not found for {image_id}")
                 return jsonify({'error': 'Image not found'}), 404
             
             # Reassemble the image
@@ -240,7 +242,7 @@ def register_route_backend_conversations(app):
                 else:
                     error_msg = f"Missing chunk {chunk_index}"
                     reassembly_log.append(f"❌ {error_msg}")
-                    print(f"WARNING: {error_msg}")
+                    debug_print(f"[IMAGES] WARNING: {error_msg}")
             
             final_length = len(complete_content)
             debug_print(f"Reassembly complete!")
@@ -272,7 +274,7 @@ def register_route_backend_conversations(app):
                 return jsonify({'error': 'Invalid image format'}), 400
                 
         except Exception as e:
-            print(f"ERROR: Failed to serve image {image_id}: {str(e)}")
+            debug_print(f"[IMAGES] ERROR: Failed to serve image {image_id}: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to retrieve image'}), 500
@@ -285,8 +287,9 @@ def register_route_backend_conversations(app):
         user_id = get_current_user_id()
         if not user_id:
             return jsonify({'error': 'User not authenticated'}), 401
-        query = f"SELECT * FROM c WHERE c.user_id = '{user_id}' ORDER BY c.last_updated DESC"
-        items = list(cosmos_conversations_container.query_items(query=query, enable_cross_partition_query=True))
+        query = "SELECT * FROM c WHERE c.user_id = @user_id ORDER BY c.last_updated DESC"
+        params = [{"name": "@user_id", "value": user_id}]
+        items = list(cosmos_conversations_container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
         return jsonify({
             'conversations': items
         }), 200
@@ -374,7 +377,7 @@ def register_route_backend_conversations(app):
                 'classification': conversation_item.get('classification', []) # Send classifications if any
             }), 200
         except Exception as e:
-            print(e)
+            debug_print(f"[CONVERSATIONS] ERROR: {e}")
             return jsonify({'error': 'Failed to update conversation'}), 500
         
     @app.route('/api/conversations/<conversation_id>', methods=['DELETE'])
@@ -417,9 +420,11 @@ def register_route_backend_conversations(app):
                 tags=conversation_item.get('tags', [])
             )
 
-        message_query = f"SELECT * FROM c WHERE c.conversation_id = '{conversation_id}'"
+        message_query = "SELECT * FROM c WHERE c.conversation_id = @conversation_id"
+        params = [{"name": "@conversation_id", "value": conversation_id}]
         results = list(cosmos_messages_container.query_items(
             query=message_query,
+            parameters=params,
             partition_key=conversation_id
         ))
 
@@ -517,9 +522,11 @@ def register_route_backend_conversations(app):
                     )
                 
                 # Get and archive messages if enabled
-                message_query = f"SELECT * FROM c WHERE c.conversation_id = '{conversation_id}'"
+                message_query = "SELECT * FROM c WHERE c.conversation_id = @conversation_id"
+                params = [{"name": "@conversation_id", "value": conversation_id}]
                 messages = list(cosmos_messages_container.query_items(
                     query=message_query,
+                    parameters=params,
                     partition_key=conversation_id
                 ))
                 
@@ -552,7 +559,7 @@ def register_route_backend_conversations(app):
                 success_count += 1
                 
             except Exception as e:
-                print(f"Error deleting conversation {conversation_id}: {str(e)}")
+                debug_print(f"[CONVERSATIONS] Error deleting conversation {conversation_id}: {str(e)}")
                 failed_ids.append(conversation_id)
         
         return jsonify({
@@ -600,7 +607,7 @@ def register_route_backend_conversations(app):
         except CosmosResourceNotFoundError:
             return jsonify({'error': 'Conversation not found'}), 404
         except Exception as e:
-            print(f"Error toggling conversation pin: {e}")
+            debug_print(f"[CONVERSATIONS] Error toggling conversation pin: {e}")
             return jsonify({'error': 'Failed to toggle pin status'}), 500
     
     @app.route('/api/conversations/<conversation_id>/hide', methods=['POST'])
@@ -642,7 +649,7 @@ def register_route_backend_conversations(app):
         except CosmosResourceNotFoundError:
             return jsonify({'error': 'Conversation not found'}), 404
         except Exception as e:
-            print(f"Error toggling conversation hide: {e}")
+            debug_print(f"[CONVERSATIONS] Error toggling conversation hide: {e}")
             return jsonify({'error': 'Failed to toggle hide status'}), 500
 
     @app.route('/api/conversations/bulk-pin', methods=['POST'])
@@ -693,7 +700,7 @@ def register_route_backend_conversations(app):
             except CosmosResourceNotFoundError:
                 failed_ids.append(conversation_id)
             except Exception as e:
-                print(f"Error updating conversation {conversation_id}: {str(e)}")
+                debug_print(f"[CONVERSATIONS] Error updating conversation {conversation_id}: {str(e)}")
                 failed_ids.append(conversation_id)
         
         return jsonify({
@@ -751,7 +758,7 @@ def register_route_backend_conversations(app):
             except CosmosResourceNotFoundError:
                 failed_ids.append(conversation_id)
             except Exception as e:
-                print(f"Error updating conversation {conversation_id}: {str(e)}")
+                debug_print(f"[CONVERSATIONS] Error updating conversation {conversation_id}: {str(e)}")
                 failed_ids.append(conversation_id)
         
         return jsonify({
@@ -804,7 +811,7 @@ def register_route_backend_conversations(app):
         except CosmosResourceNotFoundError:
             return jsonify({'error': 'Conversation not found'}), 404
         except Exception as e:
-            print(f"Error retrieving conversation metadata: {e}")
+            debug_print(f"[CONVERSATIONS] Error retrieving conversation metadata: {e}")
             return jsonify({'error': 'Failed to retrieve conversation metadata'}), 500
 
     @app.route('/api/conversations/<conversation_id>/scope_lock', methods=['PATCH'])
@@ -856,7 +863,7 @@ def register_route_backend_conversations(app):
         except CosmosResourceNotFoundError:
             return jsonify({'error': 'Conversation not found'}), 404
         except Exception as e:
-            print(f"Error updating scope lock: {e}")
+            debug_print(f"[CONVERSATIONS] Error updating scope lock: {e}")
             return jsonify({'error': 'Failed to update scope lock'}), 500
 
     @app.route('/api/conversations/classifications', methods=['GET'])
@@ -873,9 +880,11 @@ def register_route_backend_conversations(app):
         
         try:
             # Query all conversations for this user
-            query = f"SELECT c.classification FROM c WHERE c.user_id = '{user_id}'"
+            query = "SELECT c.classification FROM c WHERE c.user_id = @user_id"
+            params = [{"name": "@user_id", "value": user_id}]
             items = list(cosmos_conversations_container.query_items(
                 query=query,
+                parameters=params,
                 enable_cross_partition_query=True
             ))
             
@@ -897,7 +906,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error fetching classifications: {e}")
+            debug_print(f"[CONVERSATIONS] Error fetching classifications: {e}")
             return jsonify({'error': 'Failed to fetch classifications'}), 500
     
     @app.route('/api/search_conversations', methods=['POST'])
@@ -935,9 +944,11 @@ def register_route_backend_conversations(app):
             # Find conversations where user is a participant (supports multi-user conversations)
             # Check both old schema (user_id at root) and new schema (participant tag)
             query_parts = [
-                f"(c.user_id = '{user_id}' OR EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.category = 'participant' AND t.user_id = '{user_id}'))"
+                "(c.user_id = @user_id OR EXISTS(SELECT VALUE t FROM t IN c.tags WHERE t.category = 'participant' AND t.user_id = @user_id))"
             ]
-            
+
+            params = [{"name": "@user_id", "value": user_id}]
+
             debug_print(f"🔍 Search parameters:")
             debug_print(f"  user_id: {user_id}")
             debug_print(f"  search_term: {search_term}")
@@ -945,17 +956,21 @@ def register_route_backend_conversations(app):
             debug_print(f"  date_to: {date_to}")
             debug_print(f"  chat_types: {chat_types}")
             debug_print(f"  classifications: {classifications}")
-            
+
             if date_from:
-                query_parts.append(f"c.last_updated >= '{date_from}'")
+                query_parts.append("c.last_updated >= @date_from")
+                params.append({"name": "@date_from", "value": date_from})
             if date_to:
-                query_parts.append(f"c.last_updated <= '{date_to}T23:59:59'")
-            
-            conversation_query = f"SELECT * FROM c WHERE {' AND '.join(query_parts)}"
+                date_to_end = f"{date_to}T23:59:59"
+                query_parts.append("c.last_updated <= @date_to")
+                params.append({"name": "@date_to", "value": date_to_end})
+
+            conversation_query = "SELECT * FROM c WHERE " + ' AND '.join(query_parts)
             debug_print(f"\n📋 Conversation query: {conversation_query}")
-            
+
             conversations = list(cosmos_conversations_container.query_items(
                 query=conversation_query,
+                parameters=params,
                 enable_cross_partition_query=True,
                 max_item_count=-1  # Get all items, no pagination limit
             ))
@@ -1015,11 +1030,13 @@ def register_route_backend_conversations(app):
             
             # Do a single cross-partition query for all matching messages
             # This is much faster than querying each conversation individually
-            message_query = f"SELECT * FROM m WHERE CONTAINS(m.content, '{search_term}', true) AND (m.role = 'user' OR m.role = 'assistant')"
+            message_query = "SELECT * FROM m WHERE CONTAINS(m.content, @search_term, true) AND (m.role = 'user' OR m.role = 'assistant')"
+            message_params = [{"name": "@search_term", "value": search_term}]
             debug_print(f"\n📋 Cross-partition message query: {message_query}")
-            
+
             all_matching_messages = list(cosmos_messages_container.query_items(
                 query=message_query,
+                parameters=message_params,
                 enable_cross_partition_query=True,
                 max_item_count=-1
             ))
@@ -1130,7 +1147,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error searching conversations: {e}")
+            debug_print(f"[SEARCH] Error searching conversations: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to search conversations'}), 500
@@ -1152,7 +1169,7 @@ def register_route_backend_conversations(app):
                 'history': history
             }), 200
         except Exception as e:
-            print(f"Error retrieving search history: {e}")
+            debug_print(f"[SEARCH] Error retrieving search history: {e}")
             return jsonify({'error': 'Failed to retrieve search history'}), 500
     
     @app.route('/api/user-settings/search-history', methods=['POST'])
@@ -1178,7 +1195,7 @@ def register_route_backend_conversations(app):
                 'history': history
             }), 200
         except Exception as e:
-            print(f"Error saving search to history: {e}")
+            debug_print(f"[SEARCH] Error saving search to history: {e}")
             return jsonify({'error': 'Failed to save search to history'}), 500
     
     @app.route('/api/user-settings/search-history', methods=['DELETE'])
@@ -1201,7 +1218,7 @@ def register_route_backend_conversations(app):
             else:
                 return jsonify({'error': 'Failed to clear search history'}), 500
         except Exception as e:
-            print(f"Error clearing search history: {e}")
+            debug_print(f"[SEARCH] Error clearing search history: {e}")
             return jsonify({'error': 'Failed to clear search history'}), 500
     
     @app.route('/api/message/<message_id>', methods=['DELETE'])
@@ -1268,26 +1285,36 @@ def register_route_backend_conversations(app):
                 if thread_id:
                     # Query all messages in this thread exchange (user, system, assistant messages with same thread_id)
                     # Do NOT include subsequent threads that reference this thread_id as previous_thread_id
-                    thread_query = f"""
-                        SELECT * FROM c 
-                        WHERE c.conversation_id = '{conversation_id}' 
-                        AND c.metadata.thread_info.thread_id = '{thread_id}'
+                    thread_query = """
+                        SELECT * FROM c
+                        WHERE c.conversation_id = @conversation_id
+                        AND c.metadata.thread_info.thread_id = @thread_id
                     """
+                    thread_params = [
+                        {"name": "@conversation_id", "value": conversation_id},
+                        {"name": "@thread_id", "value": thread_id}
+                    ]
                     thread_messages = list(cosmos_messages_container.query_items(
                         query=thread_query,
+                        parameters=thread_params,
                         partition_key=conversation_id
                     ))
                     messages_to_delete = thread_messages
-                    
+
                     # THREAD CHAIN REPAIR: Update subsequent threads to maintain chain integrity
                     # Find messages where previous_thread_id points to the thread we're deleting
-                    subsequent_query = f"""
-                        SELECT * FROM c 
-                        WHERE c.conversation_id = '{conversation_id}' 
-                        AND c.metadata.thread_info.previous_thread_id = '{thread_id}'
+                    subsequent_query = """
+                        SELECT * FROM c
+                        WHERE c.conversation_id = @conversation_id
+                        AND c.metadata.thread_info.previous_thread_id = @thread_id
                     """
+                    subsequent_params = [
+                        {"name": "@conversation_id", "value": conversation_id},
+                        {"name": "@thread_id", "value": thread_id}
+                    ]
                     subsequent_messages = list(cosmos_messages_container.query_items(
                         query=subsequent_query,
+                        parameters=subsequent_params,
                         partition_key=conversation_id
                     ))
                     
@@ -1308,7 +1335,7 @@ def register_route_backend_conversations(app):
                         
                         # Upsert the updated message
                         cosmos_messages_container.upsert_item(subsequent_msg)
-                        print(f"Repaired thread chain: Message {subsequent_msg['id']} now points to thread {thread_previous_id}")
+                        debug_print(f"[THREADS] Repaired thread chain: Message {subsequent_msg['id']} now points to thread {thread_previous_id}")
                 else:
                     messages_to_delete = [message_doc]
             else:
@@ -1323,15 +1350,38 @@ def register_route_backend_conversations(app):
                 
                 if thread_id and is_active:
                     # Find all other attempts for this thread_id
-                    other_attempts_query = f"""
-                        SELECT * FROM c 
-                        WHERE c.conversation_id = '{conversation_id}' 
-                        AND c.metadata.thread_info.thread_id = '{thread_id}'
-                        AND c.id NOT IN ({','.join([f"'{m['id']}'" for m in messages_to_delete])})
-                        AND c.role = 'user'
-                    """
+                    # Generate parameter placeholders for excluded message IDs
+                    excluded_ids = [m['id'] for m in messages_to_delete]
+                    id_placeholders = []
+                    other_attempts_params = [
+                        {"name": "@conversation_id", "value": conversation_id},
+                        {"name": "@thread_id", "value": thread_id}
+                    ]
+
+                    for i, msg_id in enumerate(excluded_ids):
+                        placeholder = f"@excluded_id_{i}"
+                        id_placeholders.append(placeholder)
+                        other_attempts_params.append({"name": placeholder, "value": msg_id})
+
+                    if id_placeholders:
+                        other_attempts_query = f"""
+                            SELECT * FROM c
+                            WHERE c.conversation_id = @conversation_id
+                            AND c.metadata.thread_info.thread_id = @thread_id
+                            AND c.id NOT IN ({','.join(id_placeholders)})
+                            AND c.role = 'user'
+                        """
+                    else:
+                        other_attempts_query = """
+                            SELECT * FROM c
+                            WHERE c.conversation_id = @conversation_id
+                            AND c.metadata.thread_info.thread_id = @thread_id
+                            AND c.role = 'user'
+                        """
+
                     other_attempts = list(cosmos_messages_container.query_items(
                         query=other_attempts_query,
+                        parameters=other_attempts_params,
                         partition_key=conversation_id
                     ))
                     
@@ -1343,13 +1393,18 @@ def register_route_backend_conversations(app):
                         
                         # Activate all messages with this thread_attempt
                         activate_query = f"""
-                            SELECT * FROM c 
-                            WHERE c.conversation_id = '{conversation_id}' 
-                            AND c.metadata.thread_info.thread_id = '{thread_id}'
-                            AND c.metadata.thread_info.thread_attempt = {next_attempt_number}
+                            SELECT * FROM c
+                            WHERE c.conversation_id = @conversation_id
+                            AND c.metadata.thread_info.thread_id = @thread_id
+                            AND c.metadata.thread_info.thread_attempt = {int(next_attempt_number)}
                         """
+                        activate_params = [
+                            {"name": "@conversation_id", "value": conversation_id},
+                            {"name": "@thread_id", "value": thread_id}
+                        ]
                         messages_to_activate = list(cosmos_messages_container.query_items(
                             query=activate_query,
+                            parameters=activate_params,
                             partition_key=conversation_id
                         ))
                         
@@ -1361,7 +1416,7 @@ def register_route_backend_conversations(app):
                             msg_to_activate['metadata']['thread_info']['active_thread'] = True
                             cosmos_messages_container.upsert_item(msg_to_activate)
                         
-                        print(f"Promoted thread_attempt {next_attempt_number} to active after deleting active thread {thread_id}")
+                        debug_print(f"[THREADS] Promoted thread_attempt {next_attempt_number} to active after deleting active thread {thread_id}")
             
             deleted_message_ids = []
             
@@ -1400,7 +1455,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error deleting message: {str(e)}")
+            debug_print(f"[MESSAGES] Error deleting message: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to delete message'}), 500
@@ -1423,7 +1478,7 @@ def register_route_backend_conversations(app):
             selected_model = data.get('model')
             reasoning_effort = data.get('reasoning_effort')
             agent_info = data.get('agent_info')  # Get agent info if provided
-            
+
             # Find the original message
             query = "SELECT * FROM c WHERE c.id = @message_id"
             params = [{"name": "@message_id", "value": message_id}]
@@ -1432,14 +1487,14 @@ def register_route_backend_conversations(app):
                 parameters=params,
                 enable_cross_partition_query=True
             ))
-            
+
             if not message_results:
                 return jsonify({'error': 'Message not found'}), 404
-            
+
             original_msg = message_results[0]
             conversation_id = original_msg.get('conversation_id')
             original_role = original_msg.get('role')
-            
+
             # Verify ownership
             message_user_id = original_msg.get('metadata', {}).get('user_info', {}).get('user_id')
             if not message_user_id:
@@ -1455,23 +1510,28 @@ def register_route_backend_conversations(app):
                     return jsonify({'error': 'Conversation not found'}), 404
             elif message_user_id != user_id:
                 return jsonify({'error': 'You can only retry your own messages'}), 403
-            
+
             # Get thread info from original message
             thread_id = original_msg.get('metadata', {}).get('thread_info', {}).get('thread_id')
             previous_thread_id = original_msg.get('metadata', {}).get('thread_info', {}).get('previous_thread_id')
-            
+
             if not thread_id:
                 return jsonify({'error': 'Message has no thread_id'}), 400
-            
+
             # Find current max thread_attempt for this thread_id
-            attempt_query = f"""
-                SELECT VALUE MAX(c.metadata.thread_info.thread_attempt) 
-                FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            attempt_query = """
+                SELECT VALUE MAX(c.metadata.thread_info.thread_attempt)
+                FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
             """
+            attempt_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             attempt_results = list(cosmos_messages_container.query_items(
                 query=attempt_query,
+                parameters=attempt_params,
                 partition_key=conversation_id
             ))
             
@@ -1479,17 +1539,22 @@ def register_route_backend_conversations(app):
             new_attempt = current_max_attempt + 1
             
             # Set all existing attempts for this thread to active_thread=false
-            deactivate_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            deactivate_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
             """
+            deactivate_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             existing_messages = list(cosmos_messages_container.query_items(
                 query=deactivate_query,
+                parameters=deactivate_params,
                 partition_key=conversation_id
             ))
             
-            print(f"🔍 Retry - Found {len(existing_messages)} existing messages to deactivate")
+            debug_print(f"[RETRY] Found {len(existing_messages)} existing messages to deactivate")
             
             for msg in existing_messages:
                 msg_id = msg.get('id', 'unknown')
@@ -1503,19 +1568,24 @@ def register_route_backend_conversations(app):
                 msg['metadata']['thread_info']['active_thread'] = False
                 cosmos_messages_container.upsert_item(msg)
                 
-                print(f"  ✏️ Deactivated: {msg_id} (role={msg_role}, was_active={old_active}, now_active=False)")
+                debug_print(f"[RETRY] Deactivated: {msg_id} (role={msg_role}, was_active={old_active})")
             
             # Find the original user message in this thread to get the content
             # Get the FIRST user message in this thread (attempt=1) to ensure we get the original content
-            user_msg_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            user_msg_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
                 AND c.role = 'user'
                 ORDER BY c.metadata.thread_info.thread_attempt ASC
             """
+            user_msg_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             user_msg_results = list(cosmos_messages_container.query_items(
                 query=user_msg_query,
+                parameters=user_msg_params,
                 partition_key=conversation_id
             ))
             
@@ -1528,11 +1598,10 @@ def register_route_backend_conversations(app):
             original_metadata = original_user_msg.get('metadata', {})
             original_thread_info = original_metadata.get('thread_info', {})
             
-            print(f"🔍 Retry - Original user message: {original_user_msg.get('id')}")
-            print(f"🔍 Retry - Original thread_id: {original_thread_info.get('thread_id')}")
-            print(f"🔍 Retry - Original previous_thread_id: {original_thread_info.get('previous_thread_id')}")
-            print(f"🔍 Retry - Original attempt: {original_thread_info.get('thread_attempt')}")
-            print(f"🔍 Retry - New attempt will be: {new_attempt}")
+            debug_print(f"[RETRY] Original user message: {original_user_msg.get('id')}")
+            debug_print(f"[RETRY] Original thread_id: {original_thread_info.get('thread_id')}")
+            debug_print(f"[RETRY] Original previous_thread_id: {original_thread_info.get('previous_thread_id')}")
+            debug_print(f"[RETRY] New attempt will be: {new_attempt}")
             
             # Create new user message with same content but new attempt number
             import uuid
@@ -1551,8 +1620,8 @@ def register_route_backend_conversations(app):
                 'thread_attempt': new_attempt
             }
             
-            print(f"🔍 Retry - New user message ID: {new_user_message_id}")
-            print(f"🔍 Retry - New thread_info: {new_metadata['thread_info']}")
+            debug_print(f"[RETRY] New user message ID: {new_user_message_id}")
+            debug_print(f"[RETRY] New thread_info: {new_metadata['thread_info']}")
             
             # Create new user message
             new_user_message = {
@@ -1589,13 +1658,13 @@ def register_route_backend_conversations(app):
             # Add agent_info to chat request if provided (for agent-based retry)
             if agent_info:
                 chat_request['agent_info'] = agent_info
-                print(f"🤖 Retry - Using agent: {agent_info.get('display_name')} ({agent_info.get('name')})")
+                debug_print(f"[RETRY] Using agent: {agent_info.get('display_name')} ({agent_info.get('name')})")
             elif original_metadata.get('agent_selection'):
                 # Use original agent selection if no new agent specified
                 chat_request['agent_info'] = original_metadata.get('agent_selection')
-                print(f"🤖 Retry - Using original agent from metadata")
+                debug_print(f"[RETRY] Using original agent from metadata")
             
-            print(f"🔍 Retry - Chat request params: retry_user_message_id={new_user_message_id}, retry_thread_id={thread_id}, retry_thread_attempt={new_attempt}")
+            debug_print(f"[RETRY] Chat request params: retry_user_message_id={new_user_message_id}, retry_thread_id={thread_id}, retry_thread_attempt={new_attempt}")
             
             # Make internal request to chat API
             from flask import g
@@ -1613,7 +1682,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error retrying message: {str(e)}")
+            debug_print(f"[RETRY] Error retrying message: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to retry message'}), 500
@@ -1683,14 +1752,19 @@ def register_route_backend_conversations(app):
                 return jsonify({'error': 'Message has no thread_id'}), 400
             
             # Find current max thread_attempt for this thread_id
-            attempt_query = f"""
-                SELECT VALUE MAX(c.metadata.thread_info.thread_attempt) 
-                FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            attempt_query = """
+                SELECT VALUE MAX(c.metadata.thread_info.thread_attempt)
+                FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
             """
+            attempt_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             attempt_results = list(cosmos_messages_container.query_items(
                 query=attempt_query,
+                parameters=attempt_params,
                 partition_key=conversation_id
             ))
             
@@ -1698,17 +1772,22 @@ def register_route_backend_conversations(app):
             new_attempt = current_max_attempt + 1
             
             # Set all existing attempts for this thread to active_thread=false
-            deactivate_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            deactivate_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
             """
+            deactivate_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             existing_messages = list(cosmos_messages_container.query_items(
                 query=deactivate_query,
+                parameters=deactivate_params,
                 partition_key=conversation_id
             ))
             
-            print(f"🔍 Edit - Found {len(existing_messages)} existing messages to deactivate")
+            debug_print(f"[EDIT] Found {len(existing_messages)} existing messages to deactivate")
             
             for msg in existing_messages:
                 msg_id = msg.get('id', 'unknown')
@@ -1722,18 +1801,23 @@ def register_route_backend_conversations(app):
                 msg['metadata']['thread_info']['active_thread'] = False
                 cosmos_messages_container.upsert_item(msg)
                 
-                print(f"  ✏️ Deactivated: {msg_id} (role={msg_role}, was_active={old_active}, now_active=False)")
+                debug_print(f"[RETRY] Deactivated: {msg_id} (role={msg_role}, was_active={old_active})")
             
             # Get the FIRST user message in this thread (attempt=1) to get original metadata
-            user_msg_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            user_msg_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
                 AND c.role = 'user'
                 ORDER BY c.metadata.thread_info.thread_attempt ASC
             """
+            user_msg_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             user_msg_results = list(cosmos_messages_container.query_items(
                 query=user_msg_query,
+                parameters=user_msg_params,
                 partition_key=conversation_id
             ))
             
@@ -1745,11 +1829,10 @@ def register_route_backend_conversations(app):
             original_metadata = original_user_msg.get('metadata', {})
             original_thread_info = original_metadata.get('thread_info', {})
             
-            print(f"🔍 Edit - Original user message: {original_user_msg.get('id')}")
-            print(f"🔍 Edit - Original thread_id: {original_thread_info.get('thread_id')}")
-            print(f"🔍 Edit - Original previous_thread_id: {original_thread_info.get('previous_thread_id')}")
-            print(f"🔍 Edit - Original attempt: {original_thread_info.get('thread_attempt')}")
-            print(f"🔍 Edit - New attempt will be: {new_attempt}")
+            debug_print(f"[EDIT] Original user message: {original_user_msg.get('id')}")
+            debug_print(f"[EDIT] Original thread_id: {original_thread_info.get('thread_id')}")
+            debug_print(f"[EDIT] Original previous_thread_id: {original_thread_info.get('previous_thread_id')}")
+            debug_print(f"[EDIT] New attempt will be: {new_attempt}")
             
             # Create new user message with edited content
             import time
@@ -1767,9 +1850,9 @@ def register_route_backend_conversations(app):
                 'thread_attempt': new_attempt
             }
             
-            print(f"🔍 Edit - New user message ID: {new_user_message_id}")
-            print(f"🔍 Edit - New thread_info: {new_metadata['thread_info']}")
-            print(f"🔍 Edit - Edited flag set: {new_metadata.get('edited')}")
+            debug_print(f"[EDIT] New user message ID: {new_user_message_id}")
+            debug_print(f"[EDIT] New thread_info: {new_metadata['thread_info']}")
+            debug_print(f"[EDIT] Edited flag set: {new_metadata.get('edited')}")
             
             # Create new user message with edited content
             new_user_message = {
@@ -1816,9 +1899,9 @@ def register_route_backend_conversations(app):
                     'group_id': agent_selection.get('group_id'),
                     'group_name': agent_selection.get('group_name')
                 }
-                print(f"🤖 Edit - Using agent: {chat_request['agent_info'].get('display_name')} ({chat_request['agent_info'].get('name')})")
+                debug_print(f"[EDIT] Using agent: {chat_request['agent_info'].get('display_name')} ({chat_request['agent_info'].get('name')})")
             
-            print(f"🔍 Edit - Chat request params: edited_user_message_id={new_user_message_id}, retry_thread_id={thread_id}, retry_thread_attempt={new_attempt}")
+            debug_print(f"[EDIT] Chat request params: edited_user_message_id={new_user_message_id}, retry_thread_id={thread_id}, retry_thread_attempt={new_attempt}")
             
             # Return success with chat_request for frontend to call chat API
             return jsonify({
@@ -1832,7 +1915,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error editing message: {str(e)}")
+            debug_print(f"[EDIT] Error editing message: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to edit message'}), 500
@@ -1892,16 +1975,21 @@ def register_route_backend_conversations(app):
                 return jsonify({'error': 'Message has no thread_id'}), 400
             
             # Get all attempts for this thread_id, ordered by thread_attempt
-            attempts_query = f"""
-                SELECT DISTINCT c.metadata.thread_info.thread_attempt 
-                FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            attempts_query = """
+                SELECT DISTINCT c.metadata.thread_info.thread_attempt
+                FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
                 AND c.role = 'user'
                 ORDER BY c.metadata.thread_info.thread_attempt ASC
             """
+            attempts_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             attempts_results = list(cosmos_messages_container.query_items(
                 query=attempts_query,
+                parameters=attempts_params,
                 partition_key=conversation_id
             ))
             
@@ -1924,13 +2012,18 @@ def register_route_backend_conversations(app):
             target_attempt = available_attempts[target_index]
             
             # Deactivate all attempts for this thread
-            deactivate_query = f"""
-                SELECT * FROM c 
-                WHERE c.conversation_id = '{conversation_id}' 
-                AND c.metadata.thread_info.thread_id = '{thread_id}'
+            deactivate_query = """
+                SELECT * FROM c
+                WHERE c.conversation_id = @conversation_id
+                AND c.metadata.thread_info.thread_id = @thread_id
             """
+            deactivate_params = [
+                {"name": "@conversation_id", "value": conversation_id},
+                {"name": "@thread_id", "value": thread_id}
+            ]
             all_thread_messages = list(cosmos_messages_container.query_items(
                 query=deactivate_query,
+                parameters=deactivate_params,
                 partition_key=conversation_id
             ))
             
@@ -1952,7 +2045,7 @@ def register_route_backend_conversations(app):
             }), 200
             
         except Exception as e:
-            print(f"Error switching attempt: {str(e)}")
+            debug_print(f"[THREADS] Error switching attempt: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({'error': 'Failed to switch attempt'}), 500

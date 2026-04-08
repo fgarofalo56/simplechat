@@ -1,0 +1,106 @@
+# pyproject.toml
+# Project configuration for SimpleChat testing, linting, and packaging.
+
+[project]
+name = "simplechat"
+version = "0.239.013"
+description = "AI-powered chat application with Azure integration"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "-ra",
+]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (require Flask test client)",
+    "slow: Slow tests (external service calls, large data)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:msal.*:",
+    "ignore::DeprecationWarning:werkzeug.*:",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "functional_tests/*",
+    "static/*",
+    "templates/*",
+    "temp/*",
+    "conftest.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 20
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.",
+    "raise NotImplementedError",
+    "pass",
+    "except ImportError",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["."]
+exclude = [
+    "static/",
+    "templates/",
+    "functional_tests/",
+    "temp/",
+    "__pycache__/",
+    "*.min.js",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "S",   # flake8-bandit (security)
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "S101",   # use of assert (needed for tests)
+    "S104",   # possible binding to all interfaces
+    "S603",   # subprocess calls (false positives)
+    "S607",   # start process with partial executable path
+    "B008",   # function call in default argument (Flask patterns)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"functional_tests/**" = ["S", "E", "W", "F"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config",
+    "config_constants",
+    "config_database",
+    "config_clients",
+    "functions_authentication",
+    "functions_content",
+    "functions_documents",
+    "functions_search",
+    "functions_settings",
+    "functions_appinsights",
+]

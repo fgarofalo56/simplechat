@@ -4,6 +4,7 @@ from config import *
 from functions_authentication import *
 from functions_settings import *
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_debug import debug_print
 
 def register_route_backend_safety(app):
     @app.route('/api/safety/logs', methods=['GET'])
@@ -89,7 +90,7 @@ def register_route_backend_safety(app):
             }), 200
 
         except Exception as e:
-            print(f"Error in get_safety_logs: {str(e)}") # Log the error server-side
+            debug_print(f"Error in get_safety_logs: {str(e)}") # Log the error server-side
             # Consider using Flask's logging mechanism
             return jsonify({"error": f"An error occurred while fetching safety logs: {str(e)}"}), 500
 
@@ -175,9 +176,12 @@ def register_route_backend_safety(app):
                 parameters.append({"name": "@action", "value": filter_action})
 
             # Base query
-            where_clause = " WHERE " + " AND ".join(query_conditions)
-            query = f"SELECT * FROM c {where_clause} ORDER BY c.created_at DESC" # Or last_updated DESC
-            count_query = f"SELECT VALUE COUNT(1) FROM c {where_clause}" # Query to count total matching items
+            if query_conditions:
+                query = "SELECT * FROM c WHERE " + " AND ".join(query_conditions) + " ORDER BY c.created_at DESC" # Or last_updated DESC
+                count_query = "SELECT VALUE COUNT(1) FROM c WHERE " + " AND ".join(query_conditions) # Query to count total matching items
+            else:
+                query = "SELECT * FROM c ORDER BY c.created_at DESC"
+                count_query = "SELECT VALUE COUNT(1) FROM c"
 
             # --- Execute Queries ---
             # 1. Get total count of items matching filters for this user
@@ -207,7 +211,7 @@ def register_route_backend_safety(app):
             }), 200
 
         except Exception as e:
-            print(f"Error in get_my_safety_logs: {str(e)}")
+            debug_print(f"Error in get_my_safety_logs: {str(e)}")
             return jsonify({"error": f"An error occurred while fetching your safety logs: {str(e)}"}), 500
 
     @app.route('/api/safety/logs/my/<string:log_id>', methods=['PATCH'])

@@ -406,10 +406,10 @@ if (fetchGptBtn) {
                 updateGptHiddenInput();
                 markFormAsModified();
             } else {
-                listDiv.innerHTML = `<p class="text-danger">Error: ${data.error || 'No GPT models found'}</p>`;
+                listDiv.innerHTML = `<p class="text-danger">Error: ${escapeHtml(data.error || 'No GPT models found')}</p>`;
             }
         } catch (err) {
-            listDiv.innerHTML = `<p class="text-danger">Error fetching GPT models: ${err.message}</p>`;
+            listDiv.innerHTML = `<p class="text-danger">Error fetching GPT models: ${escapeHtml(err.message)}</p>`;
         }
     });
 }
@@ -461,10 +461,10 @@ if (fetchEmbeddingBtn) {
                 updateEmbeddingHiddenInput();
                 markFormAsModified();
             } else {
-                listDiv.innerHTML = `<p class="text-danger">Error: ${data.error || 'No embedding models found'}</p>`;
+                listDiv.innerHTML = `<p class="text-danger">Error: ${escapeHtml(data.error || 'No embedding models found')}</p>`;
             }
         } catch (err) {
-            listDiv.innerHTML = `<p class="text-danger">Error fetching embedding models: ${err.message}</p>`;
+            listDiv.innerHTML = `<p class="text-danger">Error fetching embedding models: ${escapeHtml(err.message)}</p>`;
         }
     });
 }
@@ -508,10 +508,10 @@ if (fetchImageBtn) {
                 updateImageHiddenInput();
                 markFormAsModified();
             } else {
-                listDiv.innerHTML = `<p class="text-danger">Error: ${data.error || 'No image models found'}</p>`;
+                listDiv.innerHTML = `<p class="text-danger">Error: ${escapeHtml(data.error || 'No image models found')}</p>`;
             }
         } catch (err) {
-            listDiv.innerHTML = `<p class="text-danger">Error fetching image models: ${err.message}</p>`;
+            listDiv.innerHTML = `<p class="text-danger">Error fetching image models: ${escapeHtml(err.message)}</p>`;
         }
     });
 }
@@ -749,7 +749,7 @@ function handleSaveClassification(row, indexAttr, isNew) {
 
     // Basic validation
     if (!newLabel) {
-        alert('Label cannot be empty.');
+        showGlobalToast('Label cannot be empty.', 'warning');
         labelInput?.focus();
         return;
     }
@@ -808,13 +808,13 @@ function handleSaveClassification(row, indexAttr, isNew) {
  * @param {string|number} indexAttr - The index attribute ('new-...' or number).
  * @param {boolean} isNew - Whether this was a newly added, unsaved row.
  */
-function handleDeleteClassification(row, indexAttr, isNew) {
+async function handleDeleteClassification(row, indexAttr, isNew) {
     if (isNew) {
         // Just remove the row from the DOM, it's not in the array yet
         row.remove();
     } else {
         // Ask for confirmation for existing items
-        if (confirm('Are you sure you want to delete this classification category?')) {
+        if (await showGlobalConfirm('Are you sure you want to delete this classification category?', 'Delete Classification')) {
             const index = parseInt(indexAttr, 10);
             if (!isNaN(index) && index >= 0 && index < classificationCategories.length) {
                 classificationCategories.splice(index, 1); // Remove from array
@@ -1086,13 +1086,13 @@ function handleSaveExternalLink(row, indexAttr, isNew) {
 
     // Validation
     if (!label) {
-        alert('Please enter a label for the link.');
+        showGlobalToast('Please enter a label for the link.', 'warning');
         labelInput.focus();
         return;
     }
 
     if (!url) {
-        alert('Please enter a URL for the link.');
+        showGlobalToast('Please enter a URL for the link.', 'warning');
         urlInput.focus();
         return;
     }
@@ -1101,7 +1101,7 @@ function handleSaveExternalLink(row, indexAttr, isNew) {
     try {
         new URL(url);
     } catch (e) {
-        alert('Please enter a valid URL (e.g., https://example.com).');
+        showGlobalToast('Please enter a valid URL (e.g., https://example.com).', 'warning');
         urlInput.focus();
         return;
     }
@@ -1159,7 +1159,7 @@ function handleCancelExternalLink(row, indexAttr, isNew) {
  * @param {string|number} indexAttr - The index attribute ('new-...' or number).
  * @param {boolean} isNew - Whether this was a newly added, unsaved row.
  */
-function handleDeleteExternalLink(row, indexAttr, isNew) {
+async function handleDeleteExternalLink(row, indexAttr, isNew) {
     if (isNew) {
         // Just remove the row for unsaved new links
         row.remove();
@@ -1168,8 +1168,8 @@ function handleDeleteExternalLink(row, indexAttr, isNew) {
 
     const index = parseInt(indexAttr);
     const link = externalLinks[index];
-    
-    if (link && confirm(`Are you sure you want to delete the link "${link.label}"?`)) {
+
+    if (link && await showGlobalConfirm(`Are you sure you want to delete the link "${link.label}"?`, 'Delete Link')) {
         // Remove from array
         externalLinks.splice(index, 1);
         
@@ -2160,12 +2160,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing GPT'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing GPT')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2190,12 +2190,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Redis'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Redis')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2240,12 +2240,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Embeddings'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Embeddings')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2290,12 +2290,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Image Gen'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Image Gen')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2338,12 +2338,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Safety'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Safety')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2383,12 +2383,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Azure AI Search'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Azure AI Search')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2429,12 +2429,12 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Doc Intelligence'}</span>`;
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Doc Intelligence')}</span>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;
             }
         });
     }
@@ -2459,11 +2459,11 @@ function setupTestButtons() {
                 });
                 const data = await resp.json();
                 if (resp.ok) {
-                    resultDiv.innerHTML = `<span class="text-success">${data.message}</span>`;
+                    resultDiv.innerHTML = `<span class="text-success">${escapeHtml(data.message)}</span>`;
                 } else {
-                    resultDiv.innerHTML = `<span class="text-danger">${data.error || 'Error testing Key Vault'}</span>`;                }
+                    resultDiv.innerHTML = `<span class="text-danger">${escapeHtml(data.error || 'Error testing Key Vault')}</span>`;                }
             } catch (err) {
-                resultDiv.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;            }
+                resultDiv.innerHTML = `<span class="text-danger">Error: ${escapeHtml(err.message)}</span>`;            }
         });
     }
 
@@ -2843,16 +2843,16 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(resp => {
           if (resp.status === 'success') {
-            alert(resp.message || `Successfully ${action === 'create' ? 'created' : 'fixed'} ${type} index!`);
+            showGlobalToast(resp.message || `Successfully ${action === 'create' ? 'created' : 'fixed'} ${type} index!`, 'success');
             window.location.reload();
           } else {
-            alert(`Failed to ${action} ${type} index: ${resp.error}`);
+            showGlobalToast(`Failed to ${action} ${type} index: ${resp.error}`, 'danger');
             fixBtn.disabled = false;
             fixBtn.textContent = `${action === 'create' ? 'Create' : 'Fix'} ${type} Index`;
           }
         })
         .catch(err => {
-          alert(`Error ${action === 'create' ? 'creating' : 'fixing'} ${type} index: ${err.message || err}`);
+          showGlobalToast(`Error ${action === 'create' ? 'creating' : 'fixing'} ${type} index: ${err.message || err}`, 'danger');
           fixBtn.disabled = false;
           fixBtn.textContent = `${action === 'create' ? 'Create' : 'Fix'} ${type} Index`;
         });

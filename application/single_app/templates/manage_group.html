@@ -981,13 +981,13 @@
 {% endblock %} 
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
   // Inline the real group ID from Jinja
   const groupId = "{{ group_id }}"; // This will become the real UUID
   const userId = "{{ session['user'].get('oid') }}";
 </script>
 
-<script src="{{ url_for('static', filename='js/validation-utils.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/group/manage_group.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validation-utils.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/group/manage_group.js') }}"></script>
 {% endblock %}

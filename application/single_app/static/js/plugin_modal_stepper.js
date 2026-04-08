@@ -946,7 +946,8 @@ export class PluginModalStepper {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>Upload failed: ${error.message}`;
+      statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Upload failed: ';
+      statusDiv.appendChild(document.createTextNode(error.message));
       statusDiv.className = 'mt-2 text-danger';
     }
   }

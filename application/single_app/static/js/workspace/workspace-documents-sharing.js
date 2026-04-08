@@ -259,7 +259,7 @@ window.removeUserFromDocument = async function(userId, displayName) {
         return;
     }
     
-    if (!confirm(`Remove sharing with ${displayName}?`)) {
+    if (!await showGlobalConfirm(`Remove sharing with ${displayName}?`, "Remove Sharing")) {
         return;
     }
     
