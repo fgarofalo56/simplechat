@@ -1,5 +1,6 @@
 # functions_authentication.py
 
+import time
 from config import *
 from functions_settings import *
 from functions_debug import debug_print
@@ -31,7 +32,15 @@ def build_front_door_urls(front_door_url):
     return home_url, login_redirect_url
 
 def _load_cache():
-    """Loads the MSAL token cache from the Flask session."""
+    """Loads the MSAL token cache from the Flask session.
+
+    Note on distributed caching: The MSAL token cache is stored in session["token_cache"].
+    When Redis is enabled as the session backend (enable_redis_cache=True in app settings),
+    the Flask session is automatically backed by Redis, making this token cache distributed
+    across all application instances. No separate Redis-based MSAL cache is needed.
+    When Redis is disabled, sessions use the filesystem, which is appropriate for
+    single-instance deployments.
+    """
     cache = SerializableTokenCache()
     if session.get("token_cache"):
         try:
@@ -376,26 +385,69 @@ def get_video_indexer_managed_identity_token(settings, video_id=None):
 
 
 JWKS_CACHE = {}
+_JWKS_CACHE_TIMESTAMP = 0
+_JWKS_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24 hours
+_OIDC_ISSUER_CACHE = None
+_OIDC_ISSUER_CACHE_TIMESTAMP = 0
 
-def get_microsoft_entra_jwks():
-    """Fetches the JWKS from Microsoft Entra's OIDC metadata endpoint."""
-    # Microsoft Entra OpenID Connect discovery endpoint
-    global JWKS_CACHE
+def _is_jwks_cache_expired():
+    """Check if JWKS cache has exceeded its TTL."""
+    return (time.time() - _JWKS_CACHE_TIMESTAMP) > _JWKS_CACHE_TTL_SECONDS
+
+def get_microsoft_entra_jwks(force_refresh=False):
+    """Fetches the JWKS from Microsoft Entra's OIDC metadata endpoint.
+
+    Args:
+        force_refresh: If True, bypass cache and fetch fresh keys (used when kid not found).
+    """
+    global JWKS_CACHE, _JWKS_CACHE_TIMESTAMP
     global OIDC_METADATA_URL
 
-    if not JWKS_CACHE:
-        try:
-            # Fetch OIDC configuration
-            oidc_config = requests.get(OIDC_METADATA_URL).json()
-            jwks_uri = oidc_config["jwks_uri"]
+    if JWKS_CACHE and not force_refresh and not _is_jwks_cache_expired():
+        return JWKS_CACHE
 
-            # Fetch JWKS
-            jwks_response = requests.get(jwks_uri).json()
-            JWKS_CACHE = {key['kid']: key for key in jwks_response['keys']}
-        except requests.exceptions.RequestException as e:
-            debug_print(f"Error fetching JWKS: {e}")
-            return None
+    try:
+        # Fetch OIDC configuration with timeout
+        oidc_config = requests.get(OIDC_METADATA_URL, timeout=10).json()
+        jwks_uri = oidc_config["jwks_uri"]
+
+        # Fetch JWKS with timeout
+        jwks_response = requests.get(jwks_uri, timeout=10).json()
+        JWKS_CACHE = {key['kid']: key for key in jwks_response['keys']}
+        _JWKS_CACHE_TIMESTAMP = time.time()
+    except requests.exceptions.RequestException as e:
+        debug_print(f"Error fetching JWKS: {e}")
+        log_event(f"SECURITY: Failed to fetch JWKS from {OIDC_METADATA_URL}: {e}", level=logging.ERROR)
+        # If we have stale cache, return it rather than failing completely
+        if JWKS_CACHE:
+            debug_print("Returning stale JWKS cache after fetch failure")
+            return JWKS_CACHE
+        return None
     return JWKS_CACHE
+
+def _get_oidc_issuer():
+    """Retrieve the issuer from OIDC discovery document instead of hardcoding it.
+
+    Caches the issuer for 24 hours to avoid repeated network calls.
+    """
+    global _OIDC_ISSUER_CACHE, _OIDC_ISSUER_CACHE_TIMESTAMP
+
+    if _OIDC_ISSUER_CACHE and (time.time() - _OIDC_ISSUER_CACHE_TIMESTAMP) < _JWKS_CACHE_TTL_SECONDS:
+        return _OIDC_ISSUER_CACHE
+
+    try:
+        oidc_config = requests.get(OIDC_METADATA_URL, timeout=10).json()
+        _OIDC_ISSUER_CACHE = oidc_config.get("issuer")
+        _OIDC_ISSUER_CACHE_TIMESTAMP = time.time()
+        return _OIDC_ISSUER_CACHE
+    except Exception as e:
+        debug_print(f"Error fetching OIDC issuer: {e}")
+        log_event(f"SECURITY: Failed to fetch OIDC issuer: {e}", level=logging.ERROR)
+        # Fall back to cached value if available
+        if _OIDC_ISSUER_CACHE:
+            return _OIDC_ISSUER_CACHE
+        # Ultimate fallback to v2 issuer format
+        return f"https://login.microsoftonline.com/{TENANT_ID}/v2.0"
 
 def validate_bearer_token(token):
     """Validates a Microsoft Entra bearer token."""
@@ -409,27 +461,35 @@ def validate_bearer_token(token):
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
 
-        if not kid or kid not in jwks:
-            return False, "Invalid or missing key ID."
+        if not kid:
+            return False, "Missing key ID in token header."
+
+        if kid not in jwks:
+            # Key ID not found — attempt a forced refresh in case keys rotated
+            jwks = get_microsoft_entra_jwks(force_refresh=True)
+            if not jwks or kid not in jwks:
+                return False, "Invalid key ID — signing key not found."
 
         key_data = jwks[kid]
 
         # Construct public key from JWK
         public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key_data)
 
-        # Validate the token
+        # Get issuer from OIDC discovery document instead of hardcoding
+        issuer = _get_oidc_issuer()
+
+        # Validate the token with proper audience and issuer verification
         decoded_token = jwt.decode(
             token,
             public_key,
-            algorithms=["RS256"],  # Microsoft Entra typically uses RS256
+            algorithms=["RS256"],
             audience=f"api://{CLIENT_ID}",
-            issuer=f"https://sts.windows.net/{TENANT_ID}/", # Example for common tenant or specific tenant ID
-            #issuer=AUTHORITY, # Example for common tenant or specific tenant ID
+            issuer=issuer,
             options={
                 "verify_exp": True,
                 "verify_nbf": True,
                 "verify_iss": True,
-                "verify_aud": True, # TODO: THIS NEEDS TO BE FIXED TO VERIFY AUDIENCE.
+                "verify_aud": True,
             }
         )
         return True, decoded_token
@@ -442,6 +502,7 @@ def validate_bearer_token(token):
     except jwt.exceptions.InvalidTokenError as e:
         return False, f"Invalid token: {e}"
     except Exception as e:
+        log_event(f"SECURITY: Unexpected error during token validation: {e}", level=logging.ERROR)
         return False, f"An unexpected error occurred during token validation: {e}"
 
 def accesstoken_required(f):
@@ -553,7 +614,8 @@ def check_user_access_status(user_id):
         
     except Exception as e:
         debug_print(f"Error checking user access status: {e}")
-        return True, None  # Default to allow on error to prevent lockouts
+        log_event(f"SECURITY: Error checking user access status for {user_id}: {e}", level=logging.ERROR)
+        return False, "Service temporarily unavailable. Please try again."
 
 def user_required(f):
     @wraps(f)
@@ -641,7 +703,12 @@ def file_upload_required(f):
                             return f"File Upload Denied: {reason}", 403
             except Exception as e:
                 debug_print(f"Error checking file upload permissions: {e}")
-                # Default to allow on error to prevent breaking functionality
+                log_event(f"SECURITY: Error checking file upload permissions for {user_id}: {e}", level=logging.ERROR)
+                # Fail closed — deny upload when permission check fails
+                if request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html or request.path.startswith('/api/'):
+                    return jsonify({"error": "File Upload Check Failed", "message": "Unable to verify file upload permissions. Please try again."}), 503
+                else:
+                    return "File upload permission check failed. Please try again.", 503
         
         return f(*args, **kwargs)
     return decorated_function

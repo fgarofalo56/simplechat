@@ -209,7 +209,16 @@ function scrollToSection(sectionId) {
         'web-search-section': 'web-search-foundry-section',
         'azure-ai-search-section': 'azure-ai-search-section',
         'document-intelligence-section': 'document-intelligence-section',
-        'multimedia-support-section': 'multimedia-support-section'
+        'multimedia-support-section': 'multimedia-support-section',
+        // Search Quality tab sections
+        'cohere-rerank-section': 'cohere-rerank-section',
+        'attention-optimization-section': 'attention-reorder-section',
+        // Web Crawling tab sections
+        'web-url-ingestion-section': 'web-ingestion-section',
+        'github-import-section': 'github-ingestion-section',
+        // Context Optimization tab sections
+        'token-budget-section': 'token-budget-section',
+        'advanced-retrieval-section': 'advanced-retrieval-section'
     };
     
     const targetElementId = sectionMap[sectionId] || sectionId;

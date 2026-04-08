@@ -1081,13 +1081,13 @@ async function applyBulkTagChanges() {
     
     if (documentIds.length === 0) {
         console.log('[Bulk Tag] ERROR: No documents selected');
-        alert('No documents selected');
+        showGlobalToast('No documents selected', 'warning');
         return;
     }
     
     if (selectedTags.length === 0) {
         console.log('[Bulk Tag] ERROR: No tags selected');
-        alert('Please select at least one tag by clicking on it');
+        showGlobalToast('Please select at least one tag by clicking on it', 'warning');
         return;
     }
     
@@ -1142,7 +1142,7 @@ async function applyBulkTagChanges() {
             if (errorCount > 0) {
                 message += `\n${errorCount} document(s) had errors`;
             }
-            alert(message);
+            showGlobalToast(message, errorCount > 0 ? 'warning' : 'success');
             
             // Reload workspace tags and documents
             console.log('[Bulk Tag] Reloading tags and documents...');
@@ -1153,11 +1153,11 @@ async function applyBulkTagChanges() {
             window.selectedDocuments?.clear();
             updateSelectionUI();
         } else {
-            alert('Error: ' + (result.error || 'Failed to update tags'));
+            showGlobalToast('Error: ' + (result.error || 'Failed to update tags'), 'danger');
         }
     } catch (error) {
         console.error('Error applying bulk tag changes:', error);
-        alert('Error updating tags');
+        showGlobalToast('Error updating tags', 'danger');
     } finally {
         // Reset button state
         applyBtn.disabled = false;
@@ -1221,7 +1221,7 @@ window.changeTagColor = function(tagName, currentColor) {
 };
 
 window.deleteTag = async function(tagName) {
-    if (!confirm(`Delete tag "${tagName}" from all documents?`)) return;
+    if (!await showGlobalConfirm(`Delete tag "${tagName}" from all documents?`, "Delete Tag")) return;
     
     try {
         const response = await fetch(`/api/documents/tags/${encodeURIComponent(tagName)}`, {
@@ -1231,7 +1231,7 @@ window.deleteTag = async function(tagName) {
         const result = await response.json();
         
         if (response.ok) {
-            alert(result.message);
+            showGlobalToast(result.message, 'success');
             await loadWorkspaceTags();
             if (currentView === 'grid') {
                 renderGridView();
@@ -1239,11 +1239,11 @@ window.deleteTag = async function(tagName) {
                 window.fetchUserDocuments?.();
             }
         } else {
-            alert('Error: ' + (result.error || 'Failed to delete tag'));
+            showGlobalToast('Error: ' + (result.error || 'Failed to delete tag'), 'danger');
         }
     } catch (error) {
         console.error('Error deleting tag:', error);
-        alert('Error deleting tag');
+        showGlobalToast('Error deleting tag', 'danger');
     }
 };
 

@@ -64,7 +64,7 @@ def register_route_frontend_authentication(app):
             scopes=SCOPE, # Use SCOPE from config (includes offline_access)
             redirect_uri=redirect_uri
         )
-        print("Redirecting to Azure AD for authentication.")
+        debug_print("Redirecting to Azure AD for authentication.")
         #auth_url= auth_url.replace('https://', 'http://')  # Ensure HTTPS for security
         return redirect(auth_url)
 
@@ -75,12 +75,12 @@ def register_route_frontend_authentication(app):
         if request.args.get('error'):
             error = request.args.get('error')
             error_description = request.args.get('error_description', 'No description provided.')
-            print(f"Azure AD Login Error: {error} - {error_description}")
+            debug_print(f"Azure AD Login Error: {error} - {error_description}")
             return f"Login Error: {error} - {error_description}", 400 # Or render an error page
 
         code = request.args.get('code')
         if not code:
-            print("Authorization code not found in callback.")
+            debug_print("Authorization code not found in callback.")
             return "Authorization code not found", 400
 
         # Build MSAL app WITH session cache (will be loaded by _build_msal_app via _load_cache)
@@ -102,7 +102,7 @@ def register_route_frontend_authentication(app):
         else:
             redirect_uri = url_for('authorized', _external=True, _scheme='https')
         
-        print(f"Token exchange using redirect_uri: {redirect_uri}")
+        debug_print(f"Token exchange using redirect_uri: {redirect_uri}")
 
         result = msal_app.acquire_token_by_authorization_code(
             code=code,
@@ -112,7 +112,7 @@ def register_route_frontend_authentication(app):
 
         if "error" in result:
             error_description = result.get("error_description", result.get("error"))
-            print(f"Token acquisition failure: {error_description}")
+            debug_print(f"Token acquisition failure: {error_description}")
             return f"Login failure: {error_description}", 500
 
         # --- Store results ---
@@ -125,7 +125,7 @@ def register_route_frontend_authentication(app):
         # --- CRITICAL: Save the entire cache (contains tokens) to session ---
         _save_cache(msal_app.token_cache)
 
-        print(f"User {session['user'].get('name')} logged in successfully.")
+        debug_print(f"User {session['user'].get('name')} logged in successfully.")
         
         # Log the login activity
         try:
@@ -151,11 +151,11 @@ def register_route_frontend_authentication(app):
             front_door_url = settings.get('front_door_url')
             if front_door_url:
                 home_url, login_redirect_url = build_front_door_urls(front_door_url)
-                print(f"Redirecting to configured Front Door URL: {home_url}")
+                debug_print(f"Redirecting to configured Front Door URL: {home_url}")
                 return redirect(home_url)
             elif HOME_REDIRECT_URL:
                 # Fall back to environment variable if Front Door is enabled but no URL is set
-                print(f"Redirecting to environment HOME_REDIRECT_URL: {HOME_REDIRECT_URL}")
+                debug_print(f"Redirecting to environment HOME_REDIRECT_URL: {HOME_REDIRECT_URL}")
                 return redirect(HOME_REDIRECT_URL)
         
         debug_print(f"Front Door not enabled or URLs not set, falling back to url_for('index')")
@@ -169,12 +169,12 @@ def register_route_frontend_authentication(app):
         if request.args.get('error'):
             error = request.args.get('error')
             error_description = request.args.get('error_description', 'No description provided.')
-            print(f"Azure AD Login Error: {error} - {error_description}")
+            debug_print(f"Azure AD Login Error: {error} - {error_description}")
             return f"Login Error: {error} - {error_description}", 400 # Or render an error page
 
         code = request.args.get('code')
         if not code:
-            print("Authorization code not found in callback.")
+            debug_print("Authorization code not found in callback.")
             return "Authorization code not found", 400
 
         # Build MSAL app WITH session cache (will be loaded by _build_msal_app via _load_cache)
@@ -202,7 +202,7 @@ def register_route_frontend_authentication(app):
 
         if "error" in result:
             error_description = result.get("error_description", result.get("error"))
-            print(f"Token acquisition failure: {error_description}")
+            debug_print(f"Token acquisition failure: {error_description}")
             return f"Login failure: {error_description}", 500
 
         return jsonify(result, 200)
@@ -235,9 +235,9 @@ def register_route_frontend_authentication(app):
         else:
             logout_uri = url_for('index', _external=True, _scheme='https')
         
-        print(f"Front Door enabled: {settings.get('enable_front_door', False)}")
-        print(f"Front Door URL: {settings.get('front_door_url')}")
-        print(f"Logout redirect URI: {logout_uri}")
+        debug_print(f"Front Door enabled: {settings.get('enable_front_door', False)}")
+        debug_print(f"Front Door URL: {settings.get('front_door_url')}")
+        debug_print(f"Logout redirect URI: {logout_uri}")
         
         logout_url = (
             f"{AUTHORITY}/oauth2/v2.0/logout"
@@ -247,5 +247,5 @@ def register_route_frontend_authentication(app):
         if user_email:
             logout_url += f"&logout_hint={quote(user_email)}"
         
-        print(f"{user_name} logged out. Redirecting to Azure AD logout.")
+        debug_print(f"{user_name} logged out. Redirecting to Azure AD logout.")
         return redirect(logout_url)

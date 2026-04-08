@@ -282,7 +282,13 @@ function updateChatAvatars() {
                 avatar.src = userProfileImage;
                 avatar.alt = "You";
             } else {
-                avatar.innerHTML = `<img src="${userProfileImage}" alt="You" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                // Build img element safely — avoid innerHTML with user-controlled URL
+                const img = document.createElement('img');
+                img.src = userProfileImage;
+                img.alt = 'You';
+                img.style.cssText = 'width: 100%; height: 100%; border-radius: 50%; object-fit: cover;';
+                avatar.innerHTML = '';
+                avatar.appendChild(img);
                 avatar.style.backgroundColor = 'transparent';
             }
         } else {
@@ -331,7 +337,13 @@ function createProfileAvatar(size = '28px', className = '') {
     avatar.style.height = size;
     
     if (userProfileImage) {
-        avatar.innerHTML = `<img src="${userProfileImage}" alt="Profile" style="width: ${size}; height: ${size}; border-radius: 50%; object-fit: cover;">`;
+        // Build img element safely — avoid innerHTML with user-controlled URL
+        const img = document.createElement('img');
+        img.src = userProfileImage;
+        img.alt = 'Profile';
+        img.style.cssText = `width: ${size}; height: ${size}; border-radius: 50%; object-fit: cover;`;
+        avatar.innerHTML = '';
+        avatar.appendChild(img);
         avatar.style.backgroundColor = 'transparent';
     } else {
         const initials = getInitials(getUserDisplayName());

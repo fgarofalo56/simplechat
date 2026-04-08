@@ -184,9 +184,9 @@ def register_route_frontend_chats(app):
                             
                             # Create data URL
                             image_base64_url = f"data:{mime_type};base64,{base64_image}"
-                            print(f"Converted image to base64: {filename}, size: {len(image_base64_url)} bytes")
+                            debug_print(f"Converted image to base64: {filename}, size: {len(image_base64_url)} bytes")
                     except Exception as b64_error:
-                        print(f"Warning: Failed to convert image to base64: {b64_error}")
+                        debug_print(f"Warning: Failed to convert image to base64: {b64_error}")
                 
                 # Perform vision analysis for images if enabled
                 if is_image_file and settings.get('enable_multimodal_vision', False):
@@ -213,9 +213,9 @@ def register_route_frontend_chats(app):
                             if vision_text:
                                 extracted_content += f"Text visible in image: {vision_text}\n"
                             
-                            print(f"Vision analysis added to chat upload: {filename}")
+                            debug_print(f"Vision analysis added to chat upload: {filename}")
                     except Exception as vision_error:
-                        print(f"Warning: Vision analysis failed for chat upload: {vision_error}")
+                        debug_print(f"Warning: Vision analysis failed for chat upload: {vision_error}")
                         # Continue without vision analysis
                 
             elif file_ext_nodot in {'doc', 'docm'}:
@@ -257,7 +257,7 @@ def register_route_frontend_chats(app):
                 max_content_size = 1500000  # 1.5MB in bytes
                 
                 if len(image_base64_url) > max_content_size:
-                    print(f"Large image detected ({len(image_base64_url)} bytes), splitting across multiple documents")
+                    debug_print(f"Large image detected ({len(image_base64_url)} bytes), splitting across multiple documents")
                     
                     # Extract base64 part for splitting
                     data_url_prefix = image_base64_url.split(',')[0] + ','
@@ -268,13 +268,14 @@ def register_route_frontend_chats(app):
                     chunks = [base64_content[i:i+chunk_size] for i in range(0, len(base64_content), chunk_size)]
                     total_chunks = len(chunks)
                     
-                    print(f"Splitting into {total_chunks} chunks of max {chunk_size} bytes each")
-                    
+                    debug_print(f"Splitting into {total_chunks} chunks of max {chunk_size} bytes each")
+
                     # Threading logic for file upload
                     previous_thread_id = None
                     try:
-                        last_msg_query = f"SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = '{conversation_id}' ORDER BY c.timestamp DESC"
-                        last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, partition_key=conversation_id))
+                        last_msg_query = "SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = @conversation_id ORDER BY c.timestamp DESC"
+                        params = [{"name": "@conversation_id", "value": conversation_id}]
+                        last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, parameters=params, partition_key=conversation_id))
                         if last_msgs:
                             previous_thread_id = last_msgs[0].get('thread_id')
                     except:
@@ -335,14 +336,15 @@ def register_route_frontend_chats(app):
                         }
                         cosmos_messages_container.upsert_item(chunk_doc)
                     
-                    print(f"Created {total_chunks} chunked image documents for {filename}")
+                    debug_print(f"Created {total_chunks} chunked image documents for {filename}")
                 else:
                     # Small enough to store in single document
                     # Threading logic for file upload
                     previous_thread_id = None
                     try:
-                        last_msg_query = f"SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = '{conversation_id}' ORDER BY c.timestamp DESC"
-                        last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, partition_key=conversation_id))
+                        last_msg_query = "SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = @conversation_id ORDER BY c.timestamp DESC"
+                        params = [{"name": "@conversation_id", "value": conversation_id}]
+                        last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, parameters=params, partition_key=conversation_id))
                         if last_msgs:
                             previous_thread_id = last_msgs[0].get('thread_id')
                     except:
@@ -380,14 +382,15 @@ def register_route_frontend_chats(app):
                         image_message['extracted_text'] = extracted_content
                     
                     cosmos_messages_container.upsert_item(image_message)
-                    print(f"Created single image document for {filename}")
+                    debug_print(f"Created single image document for {filename}")
             else:
                 # Non-image file or failed to convert to base64, store as 'file' role
                 # Threading logic for file upload
                 previous_thread_id = None
                 try:
-                    last_msg_query = f"SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = '{conversation_id}' ORDER BY c.timestamp DESC"
-                    last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, partition_key=conversation_id))
+                    last_msg_query = "SELECT TOP 1 c.metadata.thread_info.thread_id as thread_id FROM c WHERE c.conversation_id = @conversation_id ORDER BY c.timestamp DESC"
+                    params = [{"name": "@conversation_id", "value": conversation_id}]
+                    last_msgs = list(cosmos_messages_container.query_items(query=last_msg_query, parameters=params, partition_key=conversation_id))
                     if last_msgs:
                         previous_thread_id = last_msgs[0].get('thread_id')
                 except:
@@ -427,8 +430,9 @@ def register_route_frontend_chats(app):
             try:
                 if conversation_item.get('title') == 'New Conversation':
                     # Query to count existing messages (excluding the one we just created)
-                    count_query = f"SELECT VALUE COUNT(1) FROM c WHERE c.conversation_id = '{conversation_id}'"
-                    message_counts = list(cosmos_messages_container.query_items(query=count_query, partition_key=conversation_id))
+                    count_query = "SELECT VALUE COUNT(1) FROM c WHERE c.conversation_id = @conversation_id"
+                    params = [{"name": "@conversation_id", "value": conversation_id}]
+                    message_counts = list(cosmos_messages_container.query_items(query=count_query, parameters=params, partition_key=conversation_id))
                     message_count = message_counts[0] if message_counts else 0
                     
                     # If this is the first or only message, set title based on filename
@@ -438,10 +442,10 @@ def register_route_frontend_chats(app):
                         # Limit title length to 50 characters
                         new_title = base_filename[:50] if len(base_filename) > 50 else base_filename
                         conversation_item['title'] = new_title
-                        print(f"Auto-generated conversation title from filename: {new_title}")
+                        debug_print(f"Auto-generated conversation title from filename: {new_title}")
             except Exception as title_error:
                 # Don't fail the upload if title generation fails
-                print(f"Warning: Failed to auto-generate conversation title: {title_error}")
+                debug_print(f"Warning: Failed to auto-generate conversation title: {title_error}")
             
             cosmos_conversations_container.upsert_item(conversation_item)
 
@@ -470,6 +474,7 @@ def register_route_frontend_chats(app):
         5) (Optional) Use PyMuPDF to do further operations (like extracting a single page).
         6) Return the PDF file via send_file.
         """
+        import fitz  # Lazy import — heavy library only needed for PDF viewing
 
         # 1) Get query params
         doc_id = request.args.get("doc_id")
@@ -617,6 +622,7 @@ def register_route_frontend_chats(app):
     @login_required
     @user_required
     def view_document():
+        import fitz  # Lazy import — heavy library only needed for document viewing
         settings = get_settings()
         download_location = tempfile.gettempdir()
 
@@ -806,4 +812,4 @@ def register_route_frontend_chats(app):
                     os.remove(local_file_path)
                 except OSError as e:
                     # Log error but don't prevent response from being sent
-                    print(f"Error cleaning up file {local_file_path}: {e}")
+                    debug_print(f"Error cleaning up file {local_file_path}: {e}")

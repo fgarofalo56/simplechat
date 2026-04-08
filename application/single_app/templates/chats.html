@@ -1013,7 +1013,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Ensure global variables are still accessible if needed by older scripts
     window.enableUserFeedback = "{{ enable_user_feedback }}";
     window.activeGroupId = "{{ active_group_id }}";
@@ -1049,35 +1049,35 @@
     const USER_SETTINGS_KEY_LAYOUT = 'layoutPreference';
     const USER_SETTINGS_KEY_SPLIT = 'splitSizesPreference';
 </script>
-<script src="{{ url_for('static', filename='js/chat/chat-global.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-layout.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-utils.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/chat/chat-global.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-layout.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-utils.js') }}"></script>
 {% if app_settings.enable_speech_to_text_input %}
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-speech-input.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-speech-input.js') }}"></script>
 {% endif %}
 {% if app_settings.enable_text_to_speech %}
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-tts.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-tts.js') }}"></script>
 {% endif %}
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-messages.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-conversations.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-sidebar-conversations.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-documents.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-prompts.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-input-actions.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-toast.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-feedback.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-citations.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-loading-indicator.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-conversation-details.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-conversation-info-button.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-search-modal.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-reasoning.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-retry.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-export.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/chat/chat-onload.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-messages.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-conversations.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-sidebar-conversations.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-documents.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-prompts.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-input-actions.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-toast.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-feedback.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-citations.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-loading-indicator.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-conversation-details.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-conversation-info-button.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-search-modal.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-reasoning.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-retry.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-export.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-onload.js') }}"></script>
 {% if settings.enable_semantic_kernel %}
-    <script type="module" src="{{ url_for('static', filename='js/chat/chat-agents.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/agents_common.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/chat/chat-agents.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/agents_common.js') }}"></script>
 {% endif %}
 
 {% endblock %}

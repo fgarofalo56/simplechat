@@ -19,6 +19,23 @@ let publicPromptsSearchTerm = '';
 
 // Polling set for documents
 const publicActivePolls = new Set();
+const publicActivePollIntervals = new Map(); // documentId -> intervalId for visibility pause/resume
+
+// Page Visibility API: pause polling when tab is hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        for (const [docId, intervalId] of publicActivePollIntervals.entries()) {
+            clearInterval(intervalId);
+        }
+    } else {
+        for (const docId of publicActivePolls) {
+            if (!publicActivePollIntervals.has(docId)) continue;
+            publicActivePolls.delete(docId);
+            publicActivePollIntervals.delete(docId);
+            pollPublicDocumentStatus(docId);
+        }
+    }
+});
 
 // Document selection state
 let publicSelectedDocuments = new Set();
@@ -253,7 +270,7 @@ async function onChangeActivePublic(){
   const newId = publicSelect.value; if(newId===activePublicId) return;
   btnChangePublic.disabled=true; btnChangePublic.textContent='Changing...';
   try { const r=await fetch('/api/public_workspaces/setActive',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspaceId:newId})}); if(!r.ok) throw await r.json(); await fetchUserPublics(); if(activePublicId===newId) loadActivePublicData(); }
-  catch(e){ console.error(e); alert('Error setting active workspace: '+(e.error||e.message)); }
+  catch(e){ console.error(e); showGlobalToast('Error setting active workspace: '+(e.error||e.message), 'danger'); }
   finally{ btnChangePublic.disabled=false; btnChangePublic.textContent='Change Active Workspace'; }
 }
 
@@ -557,11 +574,15 @@ function pollPublicDocumentStatus(documentId) {
   publicActivePolls.add(documentId);
 
   const intervalId = setInterval(async () => {
+    // Skip polling tick if tab is hidden
+    if (document.hidden) return;
+
     const docRow = document.getElementById(`public-doc-row-${documentId}`);
     const statusRow = document.getElementById(`public-status-row-${documentId}`);
     if (!docRow && !statusRow) {
       clearInterval(intervalId);
       publicActivePolls.delete(documentId);
+      publicActivePollIntervals.delete(documentId);
       return;
     }
     try {
@@ -589,6 +610,7 @@ function pollPublicDocumentStatus(documentId) {
         // Stop polling and remove status row if complete or errored
         clearInterval(intervalId);
         publicActivePolls.delete(documentId);
+        publicActivePollIntervals.delete(documentId);
         if (statusRow) statusRow.remove();
         // Wait 5 seconds, then reload the table to show the detail button
         setTimeout(() => {
@@ -599,12 +621,14 @@ function pollPublicDocumentStatus(documentId) {
     } catch (err) {
       clearInterval(intervalId);
       publicActivePolls.delete(documentId);
+      publicActivePollIntervals.delete(documentId);
       const statusRow = document.getElementById(`public-status-row-${documentId}`);
       if (statusRow) {
         statusRow.innerHTML = `<td colspan="4"><div class="alert alert-warning alert-sm py-1 px-2 mb-0 small" role="alert"><i class="bi bi-exclamation-triangle-fill me-1"></i>Could not retrieve status: ${escapeHtml(err.message || 'Polling failed')}</div></td>`;
       }
     }
   }, 2000);
+  publicActivePollIntervals.set(documentId, intervalId);
 }
 
 function renderPublicDocsPagination(page, pageSize, totalCount){
@@ -620,7 +644,7 @@ function renderPublicDocsPagination(page, pageSize, totalCount){
  */
 function checkUserAgreementBeforePublicUpload() {
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-    alert('Select files');
+    showGlobalToast('Select files', 'warning');
     return;
   }
   
@@ -641,9 +665,9 @@ function checkUserAgreementBeforePublicUpload() {
 }
 
 async function onPublicUploadClick() {
-  if (!fileInput) return alert('File input not found');
+  if (!fileInput) return showGlobalToast('File input not found', 'danger');
   const files = fileInput.files;
-  if (!files || !files.length) return alert('Select files');
+  if (!files || !files.length) return showGlobalToast('Select files', 'warning');
   
   // Client-side file size validation
   const maxFileSizeMB = window.max_file_size_mb || 16; // Default to 16MB if not set
@@ -652,7 +676,7 @@ async function onPublicUploadClick() {
   for (const file of files) {
       if (file.size > maxFileSizeBytes) {
           const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
-          alert(`File "${file.name}" (${fileSizeMB} MB) exceeds the maximum allowed size of ${maxFileSizeMB} MB. Please select a smaller file.`);
+          showGlobalToast(`File "${file.name}" (${fileSizeMB} MB) exceeds the maximum allowed size of ${maxFileSizeMB} MB. Please select a smaller file.`, 'warning');
           return;
       }
   }
@@ -791,7 +815,7 @@ async function onPublicUploadClick() {
     xhr.send(formData);
   });
 }
-window.deletePublicDocument=async function(id, event){ if(!confirm('Delete?')) return; try{ await fetch(`/api/public_documents/${id}`,{method:'DELETE'}); fetchPublicDocs(); }catch(e){ alert(`Error deleting: ${e.error||e.message}`);} };
+window.deletePublicDocument=async function(id, event){ if(!await showGlobalConfirm('Delete this document?', 'Delete Document')) return; try{ await fetch(`/api/public_documents/${id}`,{method:'DELETE'}); fetchPublicDocs(); }catch(e){ showGlobalToast(`Error deleting: ${e.error||e.message}`, 'danger');} };
 
 window.searchPublicDocumentInChat = function(docId) {
   window.location.href = `/chats?search_documents=true&doc_scope=public&document_id=${docId}&workspace_id=${activePublicId}`;
@@ -849,9 +873,9 @@ function clearPublicSelection() {
   updatePublicBulkActionButtons();
 }
 
-function deletePublicSelectedDocuments() {
+async function deletePublicSelectedDocuments() {
   if (publicSelectedDocuments.size === 0) return;
-  if (!confirm(`Are you sure you want to delete ${publicSelectedDocuments.size} selected document(s)? This action cannot be undone.`)) return;
+  if (!await showGlobalConfirm(`Are you sure you want to delete ${publicSelectedDocuments.size} selected document(s)? This action cannot be undone.`, 'Delete Documents')) return;
 
   const deleteBtn = document.getElementById('public-delete-selected-btn');
   if (deleteBtn) {
@@ -868,7 +892,7 @@ function deletePublicSelectedDocuments() {
     .then(results => {
       const successful = results.filter(r => r.status === 'fulfilled').length;
       const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed > 0) alert(`Deleted ${successful} document(s). ${failed} failed to delete.`);
+      if (failed > 0) showGlobalToast(`Deleted ${successful} document(s). ${failed} failed to delete.`, 'warning');
       publicSelectedDocuments.clear();
       updatePublicBulkActionButtons();
       fetchPublicDocs();
@@ -904,9 +928,9 @@ function renderPublicPromptRow(p){ const tr=document.createElement('tr'); tr.inn
 function renderPublicPromptsPagination(page,pageSize,totalCount){ const container=publicPromptsPagination; container.innerHTML=''; const totalPages=Math.ceil(totalCount/pageSize); if(totalPages<=1) return; const ul=document.createElement('ul'); ul.className='pagination pagination-sm mb-0'; function mk(p,t,d,a){ const li=document.createElement('li'); li.className=`page-item${d?' disabled':''}${a?' active':''}`; const aEl=document.createElement('a'); aEl.className='page-link'; aEl.href='#'; aEl.textContent=t; if(!d&&!a) aEl.onclick=e=>{e.preventDefault();publicPromptsCurrentPage=p;fetchPublicPrompts();}; li.append(aEl); return li;} ul.append(mk(page-1,'«',page<=1,false)); for(let p=1;p<=totalPages;p++) ul.append(mk(p,p,false,p===page)); ul.append(mk(page+1,'»',page>=totalPages,false)); container.append(ul);} 
 
 function openPublicPromptModal(){ publicPromptIdEl.value=''; publicPromptNameEl.value=''; if(publicSimplemde) publicSimplemde.value(''); else publicPromptContentEl.value=''; document.getElementById('publicPromptModalLabel').textContent='Create Public Prompt'; publicPromptModal.show(); updatePublicPromptsRoleUI(); }
-async function onSavePublicPrompt(e){ e.preventDefault(); const id=publicPromptIdEl.value; const url=id?`/api/public_prompts/${id}`:'/api/public_prompts'; const method=id?'PATCH':'POST'; const name=publicPromptNameEl.value.trim(); const content=publicSimplemde?publicSimplemde.value():publicPromptContentEl.value.trim(); if(!name||!content) return alert('Name & content required'); const btn=document.getElementById('public-prompt-save-btn'); btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…'; try{ const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({name,content})}); if(!r.ok) throw await r.json(); publicPromptModal.hide(); fetchPublicPrompts(); }catch(err){ alert(err.error||err.message); }finally{ btn.disabled=false; btn.textContent='Save Prompt'; }}
-window.onEditPublicPrompt=async function(id){ try{ const r=await fetch(`/api/public_prompts/${id}`); if(!r.ok) throw await r.json(); const d=await r.json(); document.getElementById('publicPromptModalLabel').textContent=`Edit: ${d.name}`; publicPromptIdEl.value=d.id; publicPromptNameEl.value=d.name; if(publicSimplemde) publicSimplemde.value(d.content); else publicPromptContentEl.value=d.content; publicPromptModal.show(); }catch(e){ alert(e.error||e.message);} };
-window.onDeletePublicPrompt=async function(id){ if(!confirm('Delete prompt?')) return; try{ await fetch(`/api/public_prompts/${id}`,{method:'DELETE'}); fetchPublicPrompts(); }catch(e){ alert(e.error||e.message);} };
+async function onSavePublicPrompt(e){ e.preventDefault(); const id=publicPromptIdEl.value; const url=id?`/api/public_prompts/${id}`:'/api/public_prompts'; const method=id?'PATCH':'POST'; const name=publicPromptNameEl.value.trim(); const content=publicSimplemde?publicSimplemde.value():publicPromptContentEl.value.trim(); if(!name||!content) return showGlobalToast('Name & content required', 'warning'); const btn=document.getElementById('public-prompt-save-btn'); btn.disabled=true; btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span>Saving…'; try{ const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify({name,content})}); if(!r.ok) throw await r.json(); publicPromptModal.hide(); fetchPublicPrompts(); }catch(err){ showGlobalToast(err.error||err.message, 'danger'); }finally{ btn.disabled=false; btn.textContent='Save Prompt'; }}
+window.onEditPublicPrompt=async function(id){ try{ const r=await fetch(`/api/public_prompts/${id}`); if(!r.ok) throw await r.json(); const d=await r.json(); document.getElementById('publicPromptModalLabel').textContent=`Edit: ${d.name}`; publicPromptIdEl.value=d.id; publicPromptNameEl.value=d.name; if(publicSimplemde) publicSimplemde.value(d.content); else publicPromptContentEl.value=d.content; publicPromptModal.show(); }catch(e){ showGlobalToast(e.error||e.message, 'danger');} };
+window.onDeletePublicPrompt=async function(id){ if(!await showGlobalConfirm('Delete this prompt?', 'Delete Prompt')) return; try{ await fetch(`/api/public_prompts/${id}`,{method:'DELETE'}); fetchPublicPrompts(); }catch(e){ showGlobalToast(e.error||e.message, 'danger');} };
 
 // Document metadata functions
 window.onEditPublicDocument = function(docId) {
@@ -952,7 +976,7 @@ window.onEditPublicDocument = function(docId) {
     })
     .catch(err => {
       console.error("Error retrieving public document for edit:", err);
-      alert("Error retrieving document details: " + (err.error || err.message || "Unknown error"));
+      showGlobalToast("Error retrieving document details: " + (err.error || err.message || "Unknown error"), "danger");
     });
 };
 
@@ -1016,15 +1040,15 @@ async function onSavePublicDocMetadata(e) {
     loadPublicWorkspaceTags(); // Refresh tag counts
   } catch (err) {
     console.error("Error updating public document:", err);
-    alert("Error updating document: " + (err.message || "Unknown error"));
+    showGlobalToast("Error updating document: " + (err.message || "Unknown error"), "danger");
   } finally {
     docSaveBtn.disabled = false;
     docSaveBtn.textContent = "Save Metadata";
   }
 }
 
-window.onExtractPublicMetadata = function(docId, event) {
-  if (!confirm("Run metadata extraction for this document? This may overwrite existing metadata.")) return;
+window.onExtractPublicMetadata = async function(docId, event) {
+  if (!await showGlobalConfirm("Run metadata extraction for this document? This may overwrite existing metadata.", "Extract Metadata")) return;
 
   const extractBtn = event ? event.target.closest('button') : null;
   if (extractBtn) {
@@ -1049,7 +1073,7 @@ window.onExtractPublicMetadata = function(docId, event) {
     })
     .catch(err => {
       console.error("Error calling extract metadata for public document:", err);
-      alert("Error extracting metadata: " + (err.error || err.message || "Unknown error"));
+      showGlobalToast("Error extracting metadata: " + (err.error || err.message || "Unknown error"), "danger");
     })
     .finally(() => {
       if (extractBtn) {
@@ -1505,9 +1529,9 @@ function renamePublicTag(tagName) {
     body: JSON.stringify({ new_name: newName.trim() })
   }).then(r => r.json().then(d => ({ ok: r.ok, data: d })))
     .then(({ ok, data }) => {
-      if (ok) { alert(data.message); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); else fetchPublicDocs(); }
-      else alert('Error: ' + (data.error || 'Failed to rename'));
-    }).catch(e => { console.error(e); alert('Error renaming tag'); });
+      if (ok) { showGlobalToast(data.message, 'success'); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); else fetchPublicDocs(); }
+      else showGlobalToast('Error: ' + (data.error || 'Failed to rename'), 'danger');
+    }).catch(e => { console.error(e); showGlobalToast('Error renaming tag', 'danger'); });
 }
 
 function changePublicTagColor(tagName, currentColor) {
@@ -1518,19 +1542,19 @@ function changePublicTagColor(tagName, currentColor) {
     body: JSON.stringify({ color: newColor.trim() })
   }).then(r => r.json().then(d => ({ ok: r.ok, data: d })))
     .then(({ ok, data }) => {
-      if (ok) { alert(data.message); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); }
-      else alert('Error: ' + (data.error || 'Failed to change color'));
-    }).catch(e => { console.error(e); alert('Error changing tag color'); });
+      if (ok) { showGlobalToast(data.message, 'success'); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); }
+      else showGlobalToast('Error: ' + (data.error || 'Failed to change color'), 'danger');
+    }).catch(e => { console.error(e); showGlobalToast('Error changing tag color', 'danger'); });
 }
 
-function deletePublicTag(tagName) {
-  if (!confirm(`Delete tag "${tagName}" from all documents?`)) return;
+async function deletePublicTag(tagName) {
+  if (!await showGlobalConfirm(`Delete tag "${tagName}" from all documents?`, 'Delete Tag')) return;
   fetch(`/api/public_workspace_documents/tags/${encodeURIComponent(tagName)}`, { method: 'DELETE' })
     .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
     .then(({ ok, data }) => {
-      if (ok) { alert(data.message); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); else fetchPublicDocs(); }
-      else alert('Error: ' + (data.error || 'Failed to delete'));
-    }).catch(e => { console.error(e); alert('Error deleting tag'); });
+      if (ok) { showGlobalToast(data.message, 'success'); loadPublicWorkspaceTags(); if (publicCurrentView === 'grid') renderPublicGridView(); else fetchPublicDocs(); }
+      else showGlobalToast('Error: ' + (data.error || 'Failed to delete'), 'danger');
+    }).catch(e => { console.error(e); showGlobalToast('Error deleting tag', 'danger'); });
 }
 
 function updatePublicListSortIcons() {
@@ -1596,8 +1620,8 @@ async function applyPublicBulkTagChanges() {
   const action = document.getElementById('public-bulk-tag-action').value;
   const selectedTags = Array.from(publicBulkSelectedTags);
   const documentIds = Array.from(publicSelectedDocuments);
-  if (documentIds.length === 0) { alert('No documents selected'); return; }
-  if (selectedTags.length === 0) { alert('Please select at least one tag'); return; }
+  if (documentIds.length === 0) { showGlobalToast('No documents selected', 'warning'); return; }
+  if (selectedTags.length === 0) { showGlobalToast('Please select at least one tag', 'warning'); return; }
 
   const applyBtn = document.getElementById('public-bulk-tag-apply-btn');
   const btnText = applyBtn.querySelector('.button-text');
@@ -1614,8 +1638,8 @@ async function applyPublicBulkTagChanges() {
       const sc = result.success?.length || 0;
       const ec = result.errors?.length || 0;
       let msg = `Tags updated for ${sc} document(s)`;
-      if (ec > 0) msg += `\n${ec} document(s) had errors`;
-      alert(msg);
+      if (ec > 0) msg += `. ${ec} document(s) had errors`;
+      showGlobalToast(msg, ec > 0 ? 'warning' : 'success');
       await loadPublicWorkspaceTags();
       fetchPublicDocs();
       publicSelectedDocuments.clear();
@@ -1623,8 +1647,8 @@ async function applyPublicBulkTagChanges() {
       if (bar) bar.style.display = 'none';
       const modal = bootstrap.Modal.getInstance(document.getElementById('publicBulkTagModal'));
       if (modal) modal.hide();
-    } else { alert('Error: ' + (result.error || 'Failed to update tags')); }
-  } catch (e) { console.error(e); alert('Error updating tags'); }
+    } else { showGlobalToast('Error: ' + (result.error || 'Failed to update tags'), 'danger'); }
+  } catch (e) { console.error(e); showGlobalToast('Error updating tags', 'danger'); }
   finally { applyBtn.disabled = false; btnText.classList.remove('d-none'); btnLoad.classList.add('d-none'); }
 }
 
@@ -1697,8 +1721,8 @@ window.loadPublicWorkspaceTags = loadPublicWorkspaceTags;
         });
         const data = await resp.json();
         if (resp.ok) { await loadPublicWorkspaceTags(); updatePublicBulkTagsList(); }
-        else alert('Error: ' + (data.error || 'Failed to create tag'));
-      } catch (e) { console.error(e); alert('Error creating tag'); }
+        else showGlobalToast('Error: ' + (data.error || 'Failed to create tag'), 'danger');
+      } catch (e) { console.error(e); showGlobalToast('Error creating tag', 'danger'); }
     });
   }
 })();
@@ -1779,7 +1803,7 @@ window.editPublicTagInModal = function(tagName, currentColor) {
 };
 
 window.deletePublicTagFromModal = async function(tagName) {
-  if (!confirm(`Delete tag "${tagName}"? This will remove it from all documents.`)) return;
+  if (!await showGlobalConfirm(`Delete tag "${tagName}"? This will remove it from all documents.`, 'Delete Tag')) return;
   try {
     const resp = await fetch(`/api/public_workspace_documents/tags/${encodeURIComponent(tagName)}`, { method: 'DELETE' });
     const data = await resp.json();
@@ -1787,9 +1811,9 @@ window.deletePublicTagFromModal = async function(tagName) {
       await loadPublicWorkspaceTags();
       refreshPublicTagManagementTable();
     } else {
-      alert('Error: ' + (data.error || 'Failed to delete tag'));
+      showGlobalToast('Error: ' + (data.error || 'Failed to delete tag'), 'danger');
     }
-  } catch (e) { console.error(e); alert('Error deleting tag'); }
+  } catch (e) { console.error(e); showGlobalToast('Error deleting tag', 'danger'); }
 };
 
 async function handlePublicAddOrSaveTag() {
@@ -1799,8 +1823,8 @@ async function handlePublicAddOrSaveTag() {
   const tagName = nameInput.value.trim().toLowerCase();
   const tagColor = colorInput.value;
 
-  if (!tagName) { alert('Please enter a tag name'); return; }
-  if (!/^[a-z0-9_-]+$/.test(tagName)) { alert('Tag name must contain only lowercase letters, numbers, hyphens, and underscores'); return; }
+  if (!tagName) { showGlobalToast('Please enter a tag name', 'warning'); return; }
+  if (!/^[a-z0-9_-]+$/.test(tagName)) { showGlobalToast('Tag name must contain only lowercase letters, numbers, hyphens, and underscores', 'warning'); return; }
 
   if (publicEditingTag) {
     // Edit mode
@@ -1808,7 +1832,7 @@ async function handlePublicAddOrSaveTag() {
     const colorChanged = tagColor !== publicEditingTag.originalColor;
     if (!nameChanged && !colorChanged) { publicCancelEditMode(); return; }
     if (nameChanged && publicWorkspaceTags.some(t => t.name === tagName && t.name !== publicEditingTag.originalName)) {
-      alert('A tag with this name already exists'); return;
+      showGlobalToast('A tag with this name already exists', 'warning'); return;
     }
     try {
       const body = {};
@@ -1823,11 +1847,11 @@ async function handlePublicAddOrSaveTag() {
         await loadPublicWorkspaceTags();
         refreshPublicTagManagementTable();
         if (publicCurrentView === 'grid') renderPublicGridView();
-      } else { alert('Error: ' + (data.error || 'Failed to update tag')); }
-    } catch (e) { console.error(e); alert('Error updating tag'); }
+      } else { showGlobalToast('Error: ' + (data.error || 'Failed to update tag'), 'danger'); }
+    } catch (e) { console.error(e); showGlobalToast('Error updating tag', 'danger'); }
   } else {
     // Add mode
-    if (publicWorkspaceTags.some(t => t.name === tagName)) { alert('A tag with this name already exists'); return; }
+    if (publicWorkspaceTags.some(t => t.name === tagName)) { showGlobalToast('A tag with this name already exists', 'warning'); return; }
     try {
       const resp = await fetch('/api/public_workspace_documents/tags', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1840,8 +1864,8 @@ async function handlePublicAddOrSaveTag() {
         await loadPublicWorkspaceTags();
         refreshPublicTagManagementTable();
         if (publicCurrentView === 'grid') renderPublicGridView();
-      } else { alert('Error: ' + (data.error || 'Failed to create tag')); }
-    } catch (e) { console.error(e); alert('Error creating tag'); }
+      } else { showGlobalToast('Error: ' + (data.error || 'Failed to create tag'), 'danger'); }
+    } catch (e) { console.error(e); showGlobalToast('Error creating tag', 'danger'); }
   }
 }
 

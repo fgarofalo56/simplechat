@@ -176,7 +176,7 @@ function attachAgentTableEvents() {
     });
   }
   
-  agentsTbody.addEventListener('click', function (e) {
+  agentsTbody.addEventListener('click', async function (e) {
     console.log('Agent table clicked, target:', e.target);
     
     // Find the button element (could be the target or a parent)
@@ -194,7 +194,7 @@ function attachAgentTableEvents() {
     if (deleteBtn) {
       const agent = agents.find(a => a.name === deleteBtn.dataset.name);
       if (deleteBtn.disabled) return;
-      if (confirm(`Delete agent '${agent.name}'?`)) deleteAgent(agent.name);
+      if (await showGlobalConfirm(`Delete agent '${agent.name}'?`, "Delete Agent")) deleteAgent(agent.name);
     }
     
     if (chatBtn) {

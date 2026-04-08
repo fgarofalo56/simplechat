@@ -4,6 +4,7 @@ from config import *
 from functions_appinsights import log_event
 import app_settings_cache
 import inspect
+from functions_debug import debug_print
 
 def get_settings(use_cosmos=False):
     import secrets
@@ -23,11 +24,11 @@ def get_settings(use_cosmos=False):
         'enable_wait_plugin': True,
         'enable_math_plugin': True,
         'enable_text_plugin': True,
-        'enable_default_embedding_model_plugin': False,
+        'enable_default_embedding_model_plugin': True,
         'enable_fact_memory_plugin': True,
-        'enable_multi_agent_orchestration': False,
+        'enable_multi_agent_orchestration': True,
         'max_rounds_per_agent': 1,
-        'enable_semantic_kernel': False,
+        'enable_semantic_kernel': True,
         'per_user_semantic_kernel': False,
         'orchestration_type': 'default_agent',
         'merge_global_semantic_kernel_with_workspace': False,
@@ -101,7 +102,7 @@ def get_settings(use_cosmos=False):
         'azure_apim_embedding_api_version': '',
 
         # Image Generation Settings
-        'enable_image_generation': False,
+        'enable_image_generation': True,
         'enable_image_gen_apim': False,
         'azure_openai_image_gen_endpoint': '',
         'azure_openai_image_gen_api_version': '2024-12-01-preview',
@@ -131,33 +132,33 @@ def get_settings(use_cosmos=False):
         'enable_group_creation': True,
         'require_member_of_create_group': False,
         'require_owner_for_group_agent_management': False,
-        'enable_public_workspaces': False,
+        'enable_public_workspaces': True,
         'require_member_of_create_public_workspace': False,
-        'enable_file_sharing': False,
+        'enable_file_sharing': True,
         'enforce_workspace_scope_lock': True,
 
         # Multimedia
-        'enable_video_file_support': False,
-        'enable_audio_file_support': False,
+        'enable_video_file_support': True,
+        'enable_audio_file_support': True,
 
         # Metadata Extraction
-        'enable_extract_meta_data': False,
+        'enable_extract_meta_data': True,
         'metadata_extraction_model': '',
         
         # Multimodal Vision
-        'enable_multimodal_vision': False,
+        'enable_multimodal_vision': True,
         'multimodal_vision_model': '',
         
-        'enable_summarize_content_history_for_search': False,
+        'enable_summarize_content_history_for_search': True,
         'number_of_historical_messages_to_summarize': 10,
-        'enable_summarize_content_history_beyond_conversation_history_limit': False,
+        'enable_summarize_content_history_beyond_conversation_history_limit': True,
 
         # Multi-Modal Vision Analysis
-        'enable_multimodal_vision': False,
+        'enable_multimodal_vision': True,
         'multimodal_vision_model': '',
 
         # Document Classification
-        'enable_document_classification': False,
+        'enable_document_classification': True,
         'document_classification_categories': [
             {"label": "None", "color": "#808080"},
             {"label": "N/A", "color": "#808080"},
@@ -165,7 +166,7 @@ def get_settings(use_cosmos=False):
         ],
 
         # External Links
-        'enable_external_links': False,
+        'enable_external_links': True,
         'external_links_menu_name': 'External Links',
         'external_links_force_menu': False,
         'external_links': [
@@ -174,7 +175,7 @@ def get_settings(use_cosmos=False):
         ],
 
         # Enhanced Citations
-        'enable_enhanced_citations': False,
+        'enable_enhanced_citations': True,
         'enable_enhanced_citations_mount': False,
         'enhanced_citations_mount': '/view_documents',
         'office_docs_storage_account_url': '',
@@ -189,7 +190,7 @@ def get_settings(use_cosmos=False):
         'audio_files_key': '',
 
         # Safety (Content Safety) Settings
-        'enable_content_safety': False,
+        'enable_content_safety': True,
         'require_member_of_safety_violation_admin': False,
         'require_member_of_control_center_admin': False,
         'require_member_of_control_center_dashboard_reader': False,
@@ -200,10 +201,19 @@ def get_settings(use_cosmos=False):
         'azure_apim_content_safety_endpoint': '',
         'azure_apim_content_safety_subscription_key': '',
 
+        # Malware Scanning
+        'enable_malware_scanning': True,
+        'malware_scanning_provider': 'clamav',
+        'clamav_host': 'localhost',
+        'clamav_port': 3310,
+        'clamav_timeout_seconds': 120,
+        'malware_scan_max_file_size_mb': 100,
+        'malware_scan_on_failure': 'block',  # 'allow' or 'block' — block by default for security
+
         # User Feedback / Conversation Archiving
         'enable_user_feedback': True,
         'require_member_of_feedback_admin': False,
-        'enable_conversation_archiving': False,
+        'enable_conversation_archiving': True,
 
         # Search and Extract
         'azure_ai_search_endpoint': '',
@@ -225,7 +235,7 @@ def get_settings(use_cosmos=False):
         'azure_apim_document_intelligence_subscription_key': '',
 
         # Web search (via Azure AI Foundry agent)
-        'enable_web_search': False,
+        'enable_web_search': True,
         'web_search_consent_accepted': False,
         'enable_web_search_user_notice': False,  # Show popup to users explaining their message will be sent to Bing
         'web_search_user_notice_text': 'Your message will be sent to Microsoft Bing for web search. Only your current message is sent, not your conversation history.',
@@ -291,10 +301,10 @@ def get_settings(use_cosmos=False):
         "speech_service_authentication_type": "key",  # 'key' or 'managed_identity'
         
         # Speech-to-text chat input
-        "enable_speech_to_text_input": False,
+        "enable_speech_to_text_input": True,
         
         # Text-to-speech chat output
-        "enable_text_to_speech": False,
+        "enable_text_to_speech": True,
         
         #key vault settings
         'enable_key_vault_secret_storage': False,
@@ -302,9 +312,9 @@ def get_settings(use_cosmos=False):
         'key_vault_identity': '',
         
         # Retention Policy Settings
-        'enable_retention_policy_personal': False,
-        'enable_retention_policy_group': False,
-        'enable_retention_policy_public': False,
+        'enable_retention_policy_personal': True,
+        'enable_retention_policy_group': True,
+        'enable_retention_policy_public': True,
         'retention_policy_execution_hour': 2,  # Run at 2 AM by default (0-23)
         'retention_policy_last_run': None,  # ISO timestamp of last execution
         'retention_policy_next_run': None,  # ISO timestamp of next scheduled execution
@@ -323,46 +333,47 @@ def get_settings(use_cosmos=False):
         'default_retention_document_public': 'none',
 
         # Search Quality Settings (Phase 1: Advanced RAG)
-        'enable_cohere_rerank': False,
+        'enable_cohere_rerank': True,
         'cohere_rerank_endpoint': '',
         'cohere_rerank_api_key': '',
         'cohere_rerank_top_n': 10,
         'enable_attention_reorder': True,
 
         # Web Crawling Settings (Phase 2: Advanced RAG)
-        'enable_web_ingestion': False,
+        'enable_web_ingestion': True,
         'web_crawl_max_depth': 2,
         'web_crawl_max_pages': 100,
         'web_crawl_allowed_domains': [],
-        'enable_github_ingestion': False,
+        'enable_github_ingestion': True,
         'github_include_code': False,
         'github_token': '',
 
         # MCP Client Settings (Phase 3: Advanced RAG)
-        'enable_mcp_servers': False,
+        'enable_mcp_servers': True,
         'mcp_server_url_allowlist': [],
         'mcp_default_timeout': 30,
+        'enable_mcp_catalog': True,
 
         # Graph RAG Settings (Phase 4: Advanced RAG)
-        'enable_graph_rag': False,
+        'enable_graph_rag': True,
         'graph_rag_entity_types': ['person', 'organization', 'location', 'concept', 'technology', 'document'],
         'graph_rag_extraction_model': 'gpt-4o-mini',
         'graph_rag_max_depth': 2,
-        'enable_community_detection': False,
+        'enable_community_detection': True,
 
         # Context Optimization Settings (Phase 5: Advanced RAG)
-        'enable_context_optimization': False,
+        'enable_context_optimization': True,
         'context_token_budget': 12000,
         'search_token_budget_pct': 0.50,
-        'enable_conversation_summarization': False,
-        'enable_multi_query': False,
-        'enable_hyde': False,
-        'enable_mmr': False,
+        'enable_conversation_summarization': True,
+        'enable_multi_query': True,
+        'enable_hyde': True,
+        'enable_mmr': True,
         'mmr_lambda': 0.7,
-        'enable_contextual_compression': False,
+        'enable_contextual_compression': True,
 
         # Skills Builder Settings (Phase A: Enterprise Platform)
-        'enable_skills_builder': False,
+        'enable_skills_builder': True,
         'allow_user_skills': True,
         'allow_group_skills': True,
         'skills_require_approval': True,
@@ -400,12 +411,12 @@ def get_settings(use_cosmos=False):
                     caller_file = code.co_filename
                     caller_line = caller.f_lineno
                     caller_func = code.co_name
-                    print(
+                    debug_print(
                         "Warning: Failed to get settings from cache, read from Cosmos DB instead. "
                         f"Called from {caller_file}:{caller_line} in {caller_func}()."
                     )
                 else:
-                    print(
+                    debug_print(
                         "Warning: Failed to get settings from cache, "
                         "read from Cosmos DB instead. (no caller frame)"
                     )
@@ -417,7 +428,7 @@ def get_settings(use_cosmos=False):
         # If merging added anything new, upsert back to Cosmos so future reads remain up to date
         if merged != settings_item:
             cosmos_settings_container.upsert_item(merged)
-            print("App Settings had missing keys and was updated in Cosmos DB.")
+            debug_print("App Settings had missing keys and was updated in Cosmos DB.")
             return merged
         else:
             # If merged is unchanged, no new keys needed
@@ -425,11 +436,11 @@ def get_settings(use_cosmos=False):
 
     except CosmosResourceNotFoundError:
         cosmos_settings_container.create_item(body=default_settings)
-        print("Default settings created in Cosmos and returned.")
+        debug_print("Default settings created in Cosmos and returned.")
         return default_settings
 
     except Exception as e:
-        print(f"Error retrieving settings: {str(e)}")
+        debug_print(f"Error retrieving settings: {str(e)}")
         return None
 
 def update_settings(new_settings):
@@ -441,10 +452,10 @@ def update_settings(new_settings):
         cache_updater = getattr(app_settings_cache, "update_settings_cache", None)
         if callable(cache_updater):
             cache_updater(settings_item)
-        print("Settings updated successfully.")
+        debug_print("Settings updated successfully.")
         return True
     except Exception as e:
-        print(f"Error updating settings: {str(e)}")
+        debug_print(f"Error updating settings: {str(e)}")
         return False
 
 def compare_versions(v1_str, v2_str):
@@ -471,7 +482,7 @@ def compare_versions(v1_str, v2_str):
         v2_parts = [int(part) for part in v2_str.split('.')]
     except ValueError:
         # Handle cases where parts are not integers or contain invalid chars
-        print(f"Invalid version format encountered: '{v1_str}' or '{v2_str}'")
+        debug_print(f"Invalid version format encountered: '{v1_str}' or '{v2_str}'")
         return None
 
     # Compare parts element by element
@@ -503,7 +514,7 @@ def extract_latest_version_from_html(html_content):
              valid versions are found or an error occurs.
     """
     if not html_content:
-        print("HTML content is empty.")
+        debug_print("HTML content is empty.")
         return None
 
     try:
@@ -536,7 +547,7 @@ def extract_latest_version_from_html(html_content):
                     continue # Skip to the next link
 
         if not versions_found:
-            print("No valid version tags found in HTML matching the pattern.")
+            debug_print("No valid version tags found in HTML matching the pattern.")
             return None
 
         # Now compare the found versions to find the latest
@@ -554,16 +565,16 @@ def extract_latest_version_from_html(html_content):
                     latest_version = current_version
                 elif comparison_result is None:
                      # Log if comparison fails, but continue trying others
-                     print(f"Warning: Could not compare version '{current_version}' with '{latest_version}'. Skipping this comparison.")
+                     debug_print(f"Warning: Could not compare version '{current_version}' with '{latest_version}'. Skipping this comparison.")
                 # else: comparison is -1 or 0, keep existing latest_version
                 #     print(f"  -> '{latest_version}' remains latest.")
 
 
-        print(f"Latest version identified from HTML: {latest_version}")
+        debug_print(f"Latest version identified from HTML: {latest_version}")
         return latest_version
 
     except Exception as e:
-        print(f"Error parsing HTML or finding latest version: {e}")
+        debug_print(f"Error parsing HTML or finding latest version: {e}")
         return None
     
 def deep_merge_dicts(default_dict, existing_dict):
@@ -589,7 +600,7 @@ def decrypt_key(encrypted_key):
         decrypted_key = cipher_suite.decrypt(encrypted_key_bytes).decode()
         return decrypted_key
     except InvalidToken:
-        print("Decryption failed: Invalid token")
+        debug_print("Decryption failed: Invalid token")
         return None
 
 def get_user_settings(user_id):
@@ -628,7 +639,7 @@ def get_user_settings(user_id):
                 doc['settings']['profileImage'] = profile_image
                 updated = True
             except Exception as e:
-                print(f"Warning: Could not fetch profile image for user {user_id}: {e}")
+                debug_print(f"Warning: Could not fetch profile image for user {user_id}: {e}")
                 doc['settings']['profileImage'] = None
                 updated = True
         
@@ -652,13 +663,13 @@ def get_user_settings(user_id):
             profile_image = get_user_profile_image()
             doc['settings']['profileImage'] = profile_image
         except Exception as e:
-            print(f"Warning: Could not fetch profile image for new user {user_id}: {e}")
+            debug_print(f"Warning: Could not fetch profile image for new user {user_id}: {e}")
             doc['settings']['profileImage'] = None
             
         cosmos_user_settings_container.upsert_item(body=doc)
         return doc
     except Exception as e:
-        print(f"Error in get_user_settings for {user_id}: {e}")
+        debug_print(f"Error in get_user_settings for {user_id}: {e}")
         raise # Re-raise the exception to be handled by the route
     
 def update_user_settings(user_id, settings_to_update):
@@ -808,12 +819,12 @@ def update_user_settings(user_id, settings_to_update):
         return True
 
     except exceptions.CosmosHttpResponseError as e:
-        print(f"{log_prefix} Cosmos DB HTTP error: {e}")
+        debug_print(f"{log_prefix} Cosmos DB HTTP error: {e}")
 
         return False
     except Exception as e:
         # Catch any other unexpected errors during the update process
-        print(f"{log_prefix} Unexpected error during update: {e}")
+        debug_print(f"{log_prefix} Unexpected error during update: {e}")
 
         return False
 
@@ -860,6 +871,87 @@ def sanitize_settings_for_user(full_settings: dict) -> dict:
 
     return sanitized
 
+
+# Allowlist of settings keys safe for frontend JavaScript (window.appSettings).
+# SECURITY: Only these keys are sent to the browser via tojson|safe in base.html.
+# If a new feature needs a setting exposed to JS, add the key here explicitly.
+# This prevents accidental leakage of API keys, connection strings, or secrets.
+FRONTEND_SETTINGS_ALLOWLIST = frozenset({
+    # UI / Branding
+    "app_title",
+    "show_logo",
+    "hide_app_title",
+    "custom_logo_base64",         # Converted to bool (existence flag only)
+    "custom_logo_dark_base64",    # Converted to bool (existence flag only)
+    "custom_favicon_base64",      # Converted to bool (existence flag only)
+    "logo_version",
+    "logo_dark_version",
+    "favicon_version",
+    "landing_page_alignment",
+    "enable_dark_mode_default",
+    "enable_left_nav_default",
+    # Classification banner
+    "classification_banner_enabled",
+    "classification_banner_text",
+    "classification_banner_color",
+    "classification_banner_text_color",
+    # Feature toggles (boolean flags only — no endpoints/keys)
+    "enable_enhanced_citations",
+    "enable_text_to_speech",
+    "enable_speech_to_text_input",
+    "enable_user_workspace",
+    "enable_group_workspaces",
+    "enable_public_workspaces",
+    "enable_content_safety",
+    "enable_malware_scanning",
+    "enable_user_feedback",
+    "enable_user_agreement",
+    "enable_external_links",
+    "external_links",
+    "external_links_menu_name",
+    "external_links_force_menu",
+    "enforce_workspace_scope_lock",
+    "enable_retention_policy_personal",
+    "enable_retention_policy_group",
+    "enable_retention_policy_public",
+    # Agent settings (boolean flags only)
+    "enable_agent_template_gallery",
+    "enable_mcp_catalog",
+    "allow_user_agents",
+    "agent_templates_allow_user_submission",
+    # Control center role flags
+    "require_member_of_control_center_admin",
+    "require_member_of_control_center_dashboard_reader",
+    "require_member_of_safety_violation_admin",
+    "require_member_of_feedback_admin",
+})
+
+
+def get_frontend_settings(full_settings: dict) -> dict:
+    """Return ONLY the settings that frontend JavaScript is allowed to access.
+
+    Uses an explicit allowlist (FRONTEND_SETTINGS_ALLOWLIST) instead of a blocklist.
+    This prevents accidental exposure of API keys, connection strings, or other
+    sensitive values when new settings are added to the backend.
+
+    Base64 image fields are converted to booleans (existence flags) so templates
+    can check for custom logos without sending the full image data.
+    """
+    if not isinstance(full_settings, dict):
+        return {}
+
+    frontend = {}
+    for key in FRONTEND_SETTINGS_ALLOWLIST:
+        if key in full_settings:
+            value = full_settings[key]
+            # Convert base64 image data to boolean flag — never send raw image to JS
+            if key.endswith("_base64"):
+                frontend[key] = bool(value)
+            else:
+                frontend[key] = value
+    return frontend
+
+
 def sanitize_settings_for_logging(full_settings: dict) -> dict:
     """
     Recursively sanitize settings to remove sensitive data from debug logs.
@@ -901,7 +993,7 @@ def get_user_search_history(user_id):
     except exceptions.CosmosResourceNotFoundError:
         return []
     except Exception as e:
-        print(f"Error getting search history: {e}")
+        debug_print(f"Error getting search history: {e}")
         return []
 
 def add_search_to_history(user_id, search_term):
@@ -931,7 +1023,7 @@ def add_search_to_history(user_id, search_term):
         
         return search_history
     except Exception as e:
-        print(f"Error adding search to history: {e}")
+        debug_print(f"Error adding search to history: {e}")
         return []
 
 def clear_user_search_history(user_id):
@@ -947,5 +1039,5 @@ def clear_user_search_history(user_id):
         
         return True
     except Exception as e:
-        print(f"Error clearing search history: {e}")
+        debug_print(f"Error clearing search history: {e}")
         return False

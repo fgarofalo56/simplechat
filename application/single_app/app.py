@@ -4,6 +4,7 @@ import logging
 import pickle
 import json
 import os
+import secrets
 import sys
 
 # Fix Windows encoding issue with Unicode characters (emojis, IPA symbols, etc.)
@@ -72,6 +73,7 @@ from route_backend_retention_policy import *
 from route_backend_plugins import bpap as admin_plugins_bp, bpdp as dynamic_plugins_bp
 from route_backend_agents import bpa as admin_agents_bp
 from route_backend_agent_templates import bp_agent_templates
+from route_backend_mcp_catalog import bp_mcp_catalog
 from route_backend_public_workspaces import *
 from route_backend_public_documents import *
 from route_backend_public_prompts import *
@@ -94,6 +96,49 @@ disable_flask_instrumentation = os.environ.get("DISABLE_FLASK_INSTRUMENTATION", 
 if not (disable_flask_instrumentation == "1" or disable_flask_instrumentation.lower() == "true"):
     FlaskInstrumentor().instrument_app(app)
 
+# Rate limiting to prevent abuse and control Azure OpenAI costs
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
+
+def get_user_identifier():
+    """Get user ID for rate limiting, fall back to IP address."""
+    try:
+        from functions_authentication import get_current_user_id
+        user_id = get_current_user_id()
+        if user_id:
+            return user_id
+    except Exception:
+        pass
+    return get_remote_address()
+
+def _get_rate_limiter_storage_uri():
+    """Determine rate limiter storage backend. Prefer Redis if configured, fall back to memory."""
+    redis_url_env = os.environ.get("REDIS_URL", "").strip()
+    if redis_url_env:
+        # If REDIS_URL is a hostname (not a full URI), build a redis:// URI
+        if not redis_url_env.startswith("redis"):
+            redis_key = os.environ.get("REDIS_KEY", "").strip()
+            if redis_key:
+                return f"rediss://:{redis_key}@{redis_url_env}:6380/1"
+            else:
+                return f"rediss://{redis_url_env}:6380/1"
+        return redis_url_env
+    return "memory://"
+
+limiter = Limiter(
+    app=app,
+    key_func=get_user_identifier,
+    default_limits=["300 per minute"],
+    storage_uri=_get_rate_limiter_storage_uri(),
+)
+
+# Exempt health check endpoints from rate limiting
+@limiter.request_filter
+def exempt_health_checks():
+    """Exempt health and readiness probes from rate limiting."""
+    return request.path in ('/health', '/healthz', '/ready', '/robots933456.txt', '/favicon.ico')
+
 app.config['EXECUTOR_TYPE'] = EXECUTOR_TYPE
 app.config['EXECUTOR_MAX_WORKERS'] = EXECUTOR_MAX_WORKERS
 executor = Executor()
@@ -101,6 +146,11 @@ executor.init_app(app)
 app.config['SESSION_TYPE'] = SESSION_TYPE
 app.config['VERSION'] = VERSION
 app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
+app.config['WTF_CSRF_TIME_LIMIT'] = int(PERMANENT_SESSION_LIFETIME.total_seconds())  # Match session lifetime
 
 # Ensure filesystem session directory (when used) points to a writable path inside container.
 if SESSION_TYPE == 'filesystem':
@@ -113,10 +163,17 @@ if SESSION_TYPE == 'filesystem':
 
 Session(app)
 
+# CSRF protection — protects all POST/PUT/DELETE/PATCH forms and AJAX calls
+csrf = CSRFProtect(app)
+
+# Exempt the external API blueprint/routes that use Bearer token auth (no session cookies)
+# These routes use @accesstoken_required which validates Bearer tokens, not CSRF tokens
+
 app.register_blueprint(admin_plugins_bp)
 app.register_blueprint(dynamic_plugins_bp)
 app.register_blueprint(admin_agents_bp)
 app.register_blueprint(bp_agent_templates)
+app.register_blueprint(bp_mcp_catalog)
 app.register_blueprint(plugin_validation_bp)
 app.register_blueprint(bp_migration)
 app.register_blueprint(plugin_logging_bp)
@@ -131,7 +188,7 @@ register_enhanced_citations_routes(app)
 register_route_backend_speech(app)
 
 # Register TTS routes
-register_route_backend_tts(app)
+register_route_backend_tts(app, limiter=limiter)
 
 # Register Swagger documentation routes
 from swagger_wrapper import register_swagger_routes
@@ -415,6 +472,9 @@ def before_first_request():
 def inject_settings():
     settings = get_settings()
     public_settings = sanitize_settings_for_user(settings)
+    # Separate allowlisted settings for frontend JavaScript (window.appSettings)
+    from functions_settings import get_frontend_settings
+    frontend = get_frontend_settings(settings)
     # Inject per-user settings if logged in
     user_settings = {}
     try:
@@ -426,7 +486,7 @@ def inject_settings():
         print(f"Error injecting user settings: {e}")
         log_event(f"Error injecting user settings: {e}", level=logging.ERROR)
         user_settings = {}
-    return dict(app_settings=public_settings, user_settings=user_settings)
+    return dict(app_settings=public_settings, frontend_settings=frontend, user_settings=user_settings, csp_nonce=getattr(g, 'csp_nonce', ''))
 
 @app.template_filter('to_datetime')
 def to_datetime_filter(value):
@@ -435,6 +495,13 @@ def to_datetime_filter(value):
 @app.template_filter('format_datetime')
 def format_datetime_filter(value):
     return value.strftime('%Y-%m-%d %H:%M')
+
+# =================== CSP Nonce Generation ===================
+@app.before_request
+def generate_csp_nonce():
+    """Generate a unique CSP nonce for each request to allow inline scripts securely."""
+    from flask import g
+    g.csp_nonce = secrets.token_urlsafe(16)
 
 # =================== SK Hot Reload Handler ===================
 @app.before_request
@@ -455,12 +522,19 @@ def add_security_headers(response):
     """
     Add comprehensive security headers to all responses to protect against
     various web vulnerabilities including MIME sniffing attacks.
+    Uses per-request CSP nonce for script-src to prevent inline script injection.
     """
+    from flask import g
     from config import SECURITY_HEADERS, ENABLE_STRICT_TRANSPORT_SECURITY, HSTS_MAX_AGE
-    
-    # Apply all configured security headers
+    from utils.security import build_csp_header
+
+    # Apply all configured security headers (non-CSP headers)
     for header_name, header_value in SECURITY_HEADERS.items():
         response.headers[header_name] = header_value
+
+    # Build and apply CSP header with per-request nonce
+    nonce = getattr(g, 'csp_nonce', None)
+    response.headers['Content-Security-Policy'] = build_csp_header(nonce)
     
     # Add HSTS header only if HTTPS is enabled and configured
     if ENABLE_STRICT_TRANSPORT_SECURITY and request.is_secure:
@@ -584,7 +658,7 @@ register_route_frontend_feedback(app)
 register_route_frontend_notifications(app)
 
 # ------------------- API Chat Routes --------------------
-register_route_backend_chats(app)
+register_route_backend_chats(app, limiter=limiter)
 
 # ------------------- API Conversation Routes ------------
 register_route_backend_conversations(app)
@@ -651,6 +725,26 @@ register_route_backend_user_agreement(app)
 
 # ------------------- Extenral Health Routes ----------
 register_route_external_health(app)
+
+# =================== Per-Endpoint Rate Limits ===================
+# Apply tighter rate limits to expensive or sensitive endpoints.
+# Chat already has 30/min via its own limiter param. These cover the rest.
+upload_limit = limiter.shared_limit("10 per minute", scope="uploads")
+admin_limit = limiter.shared_limit("60 per minute", scope="admin")
+
+# Apply upload limits to document upload endpoints
+for rule in app.url_map.iter_rules():
+    endpoint_name = rule.endpoint
+    # Upload endpoints
+    if 'upload' in endpoint_name.lower() and 'POST' in (rule.methods or set()):
+        view_func = app.view_functions.get(endpoint_name)
+        if view_func:
+            app.view_functions[endpoint_name] = upload_limit(view_func)
+    # Admin/control-center endpoints
+    elif ('admin' in endpoint_name.lower() or 'control_center' in endpoint_name.lower()) and endpoint_name != 'static':
+        view_func = app.view_functions.get(endpoint_name)
+        if view_func:
+            app.view_functions[endpoint_name] = admin_limit(view_func)
 
 if __name__ == '__main__':
     settings = get_settings(use_cosmos=True)

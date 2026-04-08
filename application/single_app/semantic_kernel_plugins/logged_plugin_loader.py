@@ -135,7 +135,7 @@ class LoggedPluginLoader:
                 matched_class = None
                 for class_name, cls in discovered_plugins.items():
                     normalized_class = normalize(class_name)
-                    print("[Logged Plugin Loader] Checking plugin class:", class_name, "normalized:", normalized_class)
+                    debug_print("[Logged Plugin Loader] Checking plugin class:", class_name, "normalized:", normalized_class)
                     if normalized_type == normalized_class or normalized_type in normalized_class:
                         matched_class = cls
                         debug_print(f"[Logged Plugin Loader] Matched class for plugin '{name}' of type '{plugin_type}': {matched_class}")

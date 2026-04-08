@@ -72,7 +72,7 @@ def get_user_details_from_graph(user_id):
         }
 
     except Exception as e:
-        print(f"Failed to get user details for {user_id}: {e}")
+        debug_print(f"Failed to get user details for {user_id}: {e}")
         return {"displayName": "", "email": ""}
 
 def register_route_backend_public_workspaces(app):

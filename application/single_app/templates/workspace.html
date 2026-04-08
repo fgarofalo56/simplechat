@@ -361,6 +361,22 @@
           Your Actions
         </button>
       </li>
+      {% if settings.enable_mcp_catalog %}
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="mcp-catalog-tab-btn"
+          data-bs-toggle="tab"
+          data-bs-target="#mcp-catalog-tab"
+          type="button"
+          role="tab"
+          aria-controls="mcp-catalog-tab"
+          aria-selected="false"
+        >
+          <i class="bi bi-plug me-1"></i>MCP Catalog
+        </button>
+      </li>
+      {% endif %}
       {% endif %}
       {% if settings.enable_skills_builder %}
       <li class="nav-item" role="presentation">
@@ -764,6 +780,93 @@
             Custom User Actions are currently disabled. Please ask your admin to enable actions for your workspace.
           </div>
         {% endif %}
+      {% endif %}
+
+      <!-- ============= MCP CATALOG TAB ============= -->
+      {% if settings.enable_mcp_catalog %}
+      <div
+        class="tab-pane fade"
+        id="mcp-catalog-tab"
+        role="tabpanel"
+        aria-labelledby="mcp-catalog-tab-btn"
+      >
+        <div class="card p-3 my-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h5 class="mb-0"><i class="bi bi-plug me-2"></i>MCP Server Catalog</h5>
+              <small class="text-muted">Browse and install MCP servers to extend your AI agents with external tools</small>
+            </div>
+          </div>
+
+          <!-- Search and filter -->
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <input type="search" class="form-control" id="mcp-catalog-search" placeholder="Search MCP servers...">
+            </div>
+            <div class="col-md-4">
+              <select class="form-select" id="mcp-catalog-category-filter">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Loading spinner -->
+          <div id="mcp-catalog-loading" class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading catalog...</span>
+            </div>
+            <p class="text-muted mt-2">Loading MCP servers...</p>
+          </div>
+
+          <!-- Empty state -->
+          <div id="mcp-catalog-empty" class="d-none text-center py-4">
+            <p class="text-muted">No MCP servers found in the catalog. Ask your admin to seed the catalog.</p>
+          </div>
+
+          <!-- Catalog entries -->
+          <div id="mcp-catalog-entries" class="d-none">
+            <!-- Populated by mcp_catalog.js -->
+          </div>
+        </div>
+
+        <!-- Install Modal -->
+        <div class="modal fade" id="mcpInstallModal" tabindex="-1" aria-labelledby="mcpInstallModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="mcpInstallModalLabel">Install MCP Server</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <div id="mcp-install-description" class="mb-3"></div>
+                <div id="mcp-install-tools-preview" class="mb-3"></div>
+                <hr>
+                <form id="mcp-install-form">
+                  <input type="hidden" id="mcp-install-entry-id">
+                  <div id="mcp-install-fields">
+                    <!-- Config fields rendered dynamically -->
+                  </div>
+                  <div class="mb-3">
+                    <label for="mcp-install-scope" class="form-label">Install Scope</label>
+                    <select class="form-select" id="mcp-install-scope">
+                      <option value="personal">Personal (only you)</option>
+                      {% if settings.enable_group_workspaces %}
+                      <option value="group">Group Workspace</option>
+                      {% endif %}
+                    </select>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="mcp-install-submit">
+                  <i class="bi bi-download me-1"></i>Install
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {% endif %}
 
       <!-- ============= SKILLS TAB ============= -->
@@ -1459,15 +1562,18 @@ Transcript:
 {% block scripts %}
   {{ super() }}
   {% if settings.per_user_semantic_kernel and settings.enable_semantic_kernel %}
-    <script type="module" src="/static/js/agents_common.js"></script>
-    <script type="module" src="/static/js/workspace/workspace_agents.js"></script>
-    <script type="module" src="/static/js/workspace/workspace_plugins.js"></script>
+    <script nonce="{{ csp_nonce }}" type="module" src="/static/js/agents_common.js"></script>
+    <script nonce="{{ csp_nonce }}" type="module" src="/static/js/workspace/workspace_agents.js"></script>
+    <script nonce="{{ csp_nonce }}" type="module" src="/static/js/workspace/workspace_plugins.js"></script>
+  {% endif %}
+  {% if settings.enable_mcp_catalog %}
+    <script nonce="{{ csp_nonce }}" type="module" src="/static/js/mcp_catalog.js"></script>
   {% endif %}
   <!-- <script src="https://cdn.jsdelivr.net/npm/simplemde/dist/simplemde.min.js"></script>
    LOCAL VERSION BELOW -->
-   <script src="/static/js/simplemde/simplemde.min.js"></script>
+   <script nonce="{{ csp_nonce }}" src="/static/js/simplemde/simplemde.min.js"></script>
 
-  <script>
+  <script nonce="{{ csp_nonce }}">
     // Pass settings/flags needed by JS
     window.classification_categories = JSON.parse('{{ settings.document_classification_categories|tojson(indent=None)|safe }}' || '[]');
     if (!Array.isArray(window.classification_categories)) {
@@ -1570,16 +1676,16 @@ Transcript:
     });
   </script>
 
-  <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-utils.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-documents.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/workspace/workspace-documents-sharing.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-prompts.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/plugin_modal_stepper.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/workspace_sidebar_nav.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-migration.js') }}"></script>
-  <script type="module" src="{{ url_for('static', filename='js/workspace/workspace-init.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace/workspace-utils.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace/workspace-documents.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/workspace/workspace-documents-sharing.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace/workspace-prompts.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/plugin_modal_stepper.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/workspace_sidebar_nav.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace/workspace-migration.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace/workspace-init.js') }}"></script>
   {% if settings.enable_skills_builder %}
-  <script src="{{ url_for('static', filename='js/workspace/workspace-skills.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/workspace/workspace-skills.js') }}"></script>
   {% endif %}
 
 {% endblock %}

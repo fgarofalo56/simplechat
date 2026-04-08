@@ -126,7 +126,7 @@ def register_route_backend_groups(app):
             }), 200
 
         except Exception as e:
-            print(f"Error in api_list_groups: {str(e)}")
+            debug_print(f"Error in api_list_groups: {str(e)}")
             return jsonify({"error": f"An error occurred while fetching your groups: {str(e)}"}), 500
 
 

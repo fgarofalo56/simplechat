@@ -7,6 +7,7 @@ This supports the dynamic selection of redis or in-memory caching of settings.
 import json
 from redis import Redis
 from azure.identity import DefaultAzureCredential
+from functions_debug import debug_print
 
 _settings = None
 APP_SETTINGS_CACHE = {}
@@ -24,7 +25,7 @@ def configure_app_cache(settings, redis_cache_endpoint=None):
         redis_url = settings.get('redis_url', '').strip()
         redis_auth_type = settings.get('redis_auth_type', 'key').strip().lower()
         if redis_auth_type == 'managed_identity':
-            print("[ASC] Redis enabled using Managed Identity")
+            debug_print("[ASC] Redis enabled using Managed Identity")
             credential = DefaultAzureCredential()
             redis_hostname = redis_url.split('.')[0]
             cache_endpoint = redis_cache_endpoint
@@ -38,7 +39,7 @@ def configure_app_cache(settings, redis_cache_endpoint=None):
             )
         else:
             redis_key = settings.get('redis_key', '').strip()
-            print("[ASC] Redis enabled using Access Key")
+            debug_print("[ASC] Redis enabled using Access Key")
             redis_client = Redis(
                 host=redis_url,
                 port=6380,

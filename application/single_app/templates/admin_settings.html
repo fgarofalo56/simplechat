@@ -3962,6 +3962,10 @@
                     </p>
                 </div>
             </div>
+            </div>
+            <!-- End of search-extract tab-pane -->
+
+            <!-- New feature tab-panes (siblings of search-extract) -->
 
             <div class="tab-pane fade" id="search-quality" role="tabpanel" aria-labelledby="search-quality-tab">
                 <p class="text-muted">
@@ -4139,7 +4143,7 @@
                     Configure context window optimization — token budgeting, conversation summarization, and advanced retrieval techniques.
                 </p>
 
-                <div class="card p-3 mb-3">
+                <div class="card p-3 mb-3" id="token-budget-section">
                     <h5><i class="bi bi-sliders me-2"></i>Token Budget Management</h5>
                     <p class="text-muted small">Optimize how the context window is allocated across search results, conversation history, and summaries.</p>
 
@@ -4166,7 +4170,7 @@
                     </div>
                 </div>
 
-                <div class="card p-3 mb-3">
+                <div class="card p-3 mb-3" id="advanced-retrieval-section">
                     <h5><i class="bi bi-search me-2"></i>Advanced Retrieval</h5>
                     <p class="text-muted small">Enable advanced search techniques for better retrieval quality.</p>
 
@@ -4290,9 +4294,41 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- MCP Catalog Management -->
+                <div class="card p-3 mb-3" id="mcp-catalog-section">
+                    <h5><i class="bi bi-collection me-2"></i>MCP Server Catalog</h5>
+                    <p class="text-muted small">
+                        Manage the browsable catalog of MCP server templates. Users can install servers from this catalog
+                        to quickly add pre-configured MCP connections to their agents.
+                    </p>
+
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" class="form-check-input" id="enable_mcp_catalog" name="enable_mcp_catalog"
+                            {% if settings.enable_mcp_catalog %}checked{% endif %}>
+                        <label class="form-check-label ms-2" for="enable_mcp_catalog">Enable MCP Server Catalog</label>
+                    </div>
+
+                    <div id="mcp_catalog_admin_settings" {% if not settings.enable_mcp_catalog %}class="d-none"{% endif %}>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted small" id="mcp-catalog-count-label">Loading...</span>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" id="mcp-catalog-seed-btn">
+                                    <i class="bi bi-arrow-repeat me-1"></i>Seed Defaults
+                                </button>
+                                <button type="button" class="btn btn-sm btn-success" id="mcp-catalog-add-btn">
+                                    <i class="bi bi-plus-circle me-1"></i>Add Entry
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="mcp-catalog-admin-list">
+                            <!-- Populated by admin_mcp_catalog.js -->
+                        </div>
+                    </div>
+                </div>
             </div>
 
-        </div>
         <div class="tab-pane fade" id="security" role="tabpanel" aria-labelledby="security-tab">
                  <p class="text-muted">
                     Configure Security Settings.
@@ -4607,7 +4643,7 @@
     </div>
 </div>
 {% endblock %}
-<script>
+<script nonce="{{ csp_nonce }}">
     // Live preview for banner in admin
     document.addEventListener('DOMContentLoaded', function() {
         const textInput = document.getElementById('classification_banner_text');
@@ -4632,9 +4668,9 @@
 <!-- <script src="https://cdn.jsdelivr.net/npm/simplemde@1.11.2/dist/simplemde.min.js"></script>
  LOCAL VERSION BELOW
 -->
- <script src="/static/js/simplemde/simplemde.min.js"></script>
+ <script nonce="{{ csp_nonce }}" src="/static/js/simplemde/simplemde.min.js"></script>
  
-<script>
+<script nonce="{{ csp_nonce }}">
     // Existing SimpleMDE script...
      // We’ll store the SimpleMDE instance globally so we can destroy or read its content
     let simplemde = null;
@@ -4694,7 +4730,7 @@
     }
 </script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
     // Prepopulate model arrays and classification data from server
     window.gptSelected = JSON.parse('{{ settings.gpt_model.selected|tojson()|safe }}' || '[]');
     window.gptAll      = JSON.parse('{{ settings.gpt_model.all|tojson()|safe }}' || '[]');
@@ -4742,17 +4778,18 @@
     window.externalLinksForceMenu = "{{ settings.external_links_force_menu }}";
 
 </script>
-<script type="module" src="{{ url_for('static', filename='js/admin/admin_settings.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/admin/admin_sidebar_nav.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/plugin_modal_stepper.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/admin/admin_settings.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/admin/admin_sidebar_nav.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/plugin_modal_stepper.js') }}"></script>
 {% if settings.enable_semantic_kernel %}
-<script type="module" src="{{ url_for('static', filename='js/admin/admin_plugins.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/admin/admin_agents.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/admin/admin_agent_templates.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/admin/admin_plugins.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/admin/admin_agents.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/admin/admin_agent_templates.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/admin_mcp_catalog.js') }}"></script>
 {% endif %}
 
 <!-- Script to update the walkthrough steps based on form changes -->
-<script>
+<script nonce="{{ csp_nonce }}">
     document.addEventListener('DOMContentLoaded', function() {
         // Handle workspace toggle changes to update requirement status
         const userWorkspaceToggle = document.getElementById('enable_user_workspace');

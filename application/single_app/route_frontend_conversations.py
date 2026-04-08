@@ -166,9 +166,9 @@ def register_route_frontend_conversations(app):
                             complete_content += chunk_content
                             debug_print(f"Frontend endpoint - Added chunk {chunk_index}, length: {len(chunk_content)} bytes")
                         else:
-                            print(f"WARNING: Frontend endpoint - Missing chunk {chunk_index} for image {image_id}")
+                            debug_print(f"WARNING: Frontend endpoint - Missing chunk {chunk_index} for image {image_id}")
                 else:
-                    print(f"WARNING: Frontend endpoint - No chunks found for image {image_id}")
+                    debug_print(f"WARNING: Frontend endpoint - No chunks found for image {image_id}")
                 
                 debug_print(f"Frontend endpoint - Final reassembled image total size: {len(complete_content)} bytes")
                 
@@ -242,5 +242,5 @@ def register_route_frontend_conversations(app):
                 return jsonify(message)
             
         except Exception as e:
-            print(f"Error fetching message metadata: {str(e)}")
+            debug_print(f"Error fetching message metadata: {str(e)}")
             return jsonify({'error': 'Failed to fetch message metadata'}), 500

@@ -2,6 +2,103 @@
 
 # Feature Release
 
+### **(v0.239.005)**
+
+#### Bug Fixes
+
+*   **Admin Settings Tab Rendering Fix**
+    *   Fixed critical rendering bug where 6 new feature tab-panes (Search Quality, Web Crawling, MCP Servers, Skills Builder, Graph RAG, Context Optimization) were completely inaccessible when using the sidebar navigation layout.
+    *   **Root Cause**: Missing `</div>` closing tag for the Search & Extract tab-pane caused all new feature tab-panes to be nested inside it as children rather than siblings. When `showAdminTab()` hid all tab-panes, the parent was hidden, making all children invisible regardless of their own `show active` classes.
+    *   **Fix**: Added closing `</div>` to properly terminate the Search & Extract tab-pane before new feature tab-panes, and removed a stale closing `</div>` that was incorrectly positioned.
+    *   Added sidebar navigation entries for all 6 new feature tabs with appropriate sub-items and section scroll mappings.
+    *   Added missing element IDs (`token-budget-section`, `advanced-retrieval-section`) to admin settings cards for section scroll navigation.
+    *   (Ref: `admin_settings.html`, `_sidebar_nav.html`, `admin_sidebar_nav.js`)
+
+### **(v0.239.004)**
+
+#### New Features
+
+*   **Admin Settings Sidebar Navigation for New Features**
+    *   Added sidebar navigation entries for all Advanced RAG and Skills Builder feature tabs.
+    *   Search Quality tab with Cohere Reranking and Attention Optimization sub-items.
+    *   Web Crawling tab with Web URL Ingestion and GitHub Import sub-items.
+    *   MCP Servers tab (standalone).
+    *   Skills Builder tab (standalone).
+    *   Graph RAG tab (standalone).
+    *   Context Optimization tab with Token Budget and Advanced Retrieval sub-items.
+    *   (Ref: `_sidebar_nav.html`, `admin_sidebar_nav.js`)
+
+### **(v0.239.003)**
+
+#### New Features
+
+*   **Graph RAG (Advanced RAG Phase 4)**
+    *   Knowledge graph entity extraction from document chunks using GPT.
+    *   Entity resolution and deduplication against existing graph nodes.
+    *   Relationship storage with type, description, and source tracking.
+    *   Graph-enhanced search augments vector results with structured knowledge context.
+    *   Community detection using Leiden algorithm with GPT-generated thematic summaries.
+    *   Query routing between vector-only, graph-only, and hybrid retrieval.
+    *   Entity neighborhood traversal (configurable 1-3 hops).
+    *   Admin settings tab for Graph RAG configuration.
+    *   (Ref: `functions_graph_entities.py`, `functions_graph_rag.py`, `functions_graph_communities.py`, `ADVANCED_RAG_GRAPH_RAG.md`)
+
+*   **Context Optimization & Advanced Search (Advanced RAG Phase 5)**
+    *   Token budget management with tiktoken-based counting for GPT-3.5/4/4o models.
+    *   Intelligent context budget allocation across system prompt, search results, and conversation history.
+    *   Conversation summarization for long chat sessions exceeding token budget.
+    *   Map-reduce summarization for large document sets.
+    *   Multi-query expansion generating N semantic variations for broader retrieval.
+    *   HyDE (Hypothetical Document Embeddings) for improved retrieval of abstract queries.
+    *   Contextual compression extracting only query-relevant content from chunks.
+    *   Maximal Marginal Relevance (MMR) diversity filtering.
+    *   Admin settings tab with Token Budget and Advanced Retrieval sections.
+    *   (Ref: `functions_context_optimization.py`, `functions_query_expansion.py`, `ADVANCED_RAG_CONTEXT_OPTIMIZATION.md`)
+
+*   **Skills Builder (Phases 1-3)**
+    *   User-created reusable AI skills with parameterized prompt templates.
+    *   Skills invocable as `/commands` in chat with parameter extraction.
+    *   Full CRUD API: create, read, update, delete skills (15+ REST endpoints).
+    *   Scope management: personal, group, and global skill scopes.
+    *   Skills marketplace for publishing, discovering, and installing shared skills.
+    *   Admin approval workflow for marketplace submissions.
+    *   Skill rating system (1-5 stars) with aggregated averages.
+    *   Execution logging and history tracking (input, output, duration, status).
+    *   Visual skill creator page and marketplace browsing UI.
+    *   Admin settings tab for Skills Builder configuration.
+    *   (Ref: `functions_skills.py`, `route_backend_skills.py`, `SKILLS_BUILDER.md`)
+
+### **(v0.239.002)**
+
+#### New Features
+
+*   **Search Quality Foundation (Advanced RAG Phase 1)**
+    *   Cohere Rerank v4 Fast integration via Azure AI Foundry for semantic result re-scoring.
+    *   Attention-aware document reordering (lost-in-the-middle optimization) placing highest-relevance results at LLM attention peaks.
+    *   Search quality metrics logging to Application Insights (result count, score distribution, reranking/reordering flags).
+    *   Admin settings tab with Cohere Reranking and Attention Optimization sections.
+    *   (Ref: `functions_reranking.py`, `ADVANCED_RAG_SEARCH_QUALITY.md`)
+
+*   **Web & GitHub Crawling (Advanced RAG Phase 2)**
+    *   Single URL ingestion with content extraction and chunking.
+    *   Sitemap crawling with configurable depth/page limits and progress tracking.
+    *   GitHub repository import for documentation and code files.
+    *   SSRF prevention with URL validation, domain allowlisting, and robots.txt compliance.
+    *   Crawl job tracking in Cosmos DB with real-time status updates.
+    *   Content change detection via SHA-256 hashing for re-crawl operations.
+    *   Admin settings tab with Web URL Ingestion and GitHub Import sections.
+    *   (Ref: `functions_web_ingestion.py`, `route_backend_web_ingestion.py`, `ADVANCED_RAG_WEB_CRAWLING.md`)
+
+*   **MCP Client Support (Advanced RAG Phase 3)**
+    *   Connect to external MCP servers as Semantic Kernel plugins.
+    *   Dynamic plugin creation from MCP server manifests with tool discovery.
+    *   Support for SSE and Streamable HTTP transports.
+    *   Authentication support: API key, bearer token, and no-auth modes.
+    *   Connection testing from admin UI.
+    *   Security: URL validation, SSRF prevention, HTTPS enforcement, timeouts.
+    *   Admin settings tab for MCP server management.
+    *   (Ref: `semantic_kernel_plugins/mcp_plugin_factory.py`, `ADVANCED_RAG_MCP_SERVERS.md`)
+
 ### **(v0.239.001)**
 
 #### New Features

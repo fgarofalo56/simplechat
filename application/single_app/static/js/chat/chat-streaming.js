@@ -8,6 +8,8 @@ import { applyScopeLock } from './chat-documents.js';
 
 let streamingEnabled = false;
 let currentEventSource = null;
+let currentAbortController = null;
+let currentStreamReader = null;
 
 export function initializeStreamingToggle() {
     const streamingToggleBtn = document.getElementById('streaming-toggle-btn');
@@ -144,7 +146,15 @@ export function sendMessageWithStreaming(messageData, tempUserMessageId, current
         currentEventSource.close();
         currentEventSource = null;
     }
-    
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+    }
+    currentStreamReader = null;
+
+    // Create AbortController for cancellation support
+    currentAbortController = new AbortController();
+
     // Create a unique message ID for the AI response
     const tempAiMessageId = `temp_ai_${Date.now()}`;
     let accumulatedContent = '';
@@ -172,7 +182,8 @@ export function sendMessageWithStreaming(messageData, tempUserMessageId, current
             'Content-Type': 'application/json',
         },
         credentials: 'same-origin',
-        body: JSON.stringify(messageData)
+        body: JSON.stringify(messageData),
+        signal: currentAbortController.signal
     }).then(response => {
         if (!response.ok) {
             return response.json().then(errData => {
@@ -182,6 +193,7 @@ export function sendMessageWithStreaming(messageData, tempUserMessageId, current
         
         // Read the streaming response
         const reader = response.body.getReader();
+        currentStreamReader = reader;
         const decoder = new TextDecoder();
         
         function readStream() {
@@ -225,6 +237,8 @@ export function sendMessageWithStreaming(messageData, tempUserMessageId, current
                                 );
                                 
                                 currentEventSource = null;
+                                currentStreamReader = null;
+                                currentAbortController = null;
                                 return;
                             }
                         } catch (e) {
@@ -245,6 +259,14 @@ export function sendMessageWithStreaming(messageData, tempUserMessageId, current
         
     }).catch(error => {
         clearTimeout(streamTimeout);
+        currentStreamReader = null;
+        currentAbortController = null;
+
+        // Don't show error toast for intentional cancellation
+        if (error.name === 'AbortError') {
+            return;
+        }
+
         console.error('Streaming request error:', error);
         showToast(`Error: ${error.message}`, 'error');
         
@@ -374,9 +396,41 @@ function finalizeStreamingMessage(messageId, userMessageId, finalData) {
 }
 
 export function cancelStreaming() {
+    let cancelled = false;
+
+    // Abort the fetch request (this also terminates the server-side stream)
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+        cancelled = true;
+    }
+
+    // Close the stream reader if still open
+    if (currentStreamReader) {
+        try {
+            currentStreamReader.cancel();
+        } catch (e) {
+            // Reader may already be closed
+        }
+        currentStreamReader = null;
+        cancelled = true;
+    }
+
+    // Legacy EventSource cleanup
     if (currentEventSource) {
         currentEventSource.close();
         currentEventSource = null;
+        cancelled = true;
+    }
+
+    if (cancelled) {
+        // Remove streaming cursor from any active streaming message
+        const cursor = document.querySelector('.streaming-cursor');
+        if (cursor) cursor.remove();
+
+        // Hide loading indicator
+        hideLoadingIndicatorInChatbox();
+
         showToast('Streaming cancelled', 'info');
     }
 }

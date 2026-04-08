@@ -206,7 +206,7 @@ def get_plugin_types():
             if not found:
                 debug_log.append(f"No valid plugin class found in {fname}")
     # Log the debug output to the server log
-    print("[PLUGIN DISCOVERY DEBUG]", *debug_log, sep="\n")
+    debug_print("[PLUGIN DISCOVERY DEBUG]", *debug_log, sep="\n")
     return jsonify(types)
 
 bpap = Blueprint('admin_plugins', __name__)
@@ -324,7 +324,7 @@ def set_user_plugins():
             else:
                 plugin['type'] = 'unknown'  # Default type
         
-        print(f"Plugin build: {plugin}")
+        debug_print(f"Plugin build: {plugin}")
         validation_error = validate_plugin(plugin)
         if validation_error:
             return jsonify({'error': f'Plugin validation failed: {validation_error}'}), 400

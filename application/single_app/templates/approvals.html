@@ -167,7 +167,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 // Toast notification helper
 window.showToast = function(message, type = 'info') {
     const toastContainer = document.getElementById('toast-container');

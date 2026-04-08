@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleChat API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="/static/swagger-ui/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin:0;
+            background: #fafafa;
+        }
+        .swagger-ui .topbar {
+            background-color: #1976d2;
+        }
+        .swagger-ui .topbar .download-url-wrapper {
+            display: none;
+        }
+
+        /* Custom Search Styles */
+        .api-search-container {
+            position: sticky;
+            top: 0;
+            background: #f7f7f7;
+            border-bottom: 2px solid #1976d2;
+            padding: 15px 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .api-search-box {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .search-input:focus {
+            border-color: #1976d2;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 18px;
+        }
+
+        .search-results-info {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .clear-search {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: none;
+        }
+
+        .clear-search:hover {
+            color: #666;
+        }
+
+        /* Hide filtered out operations */
+        .opblock.filtered-out {
+            display: none !important;
+        }
+
+        /* Hide empty tags */
+        .opblock-tag-section.empty-tag {
+            display: none !important;
+        }
+
+        /* Highlight matching text */
+        .search-highlight {
+            background: yellow;
+            font-weight: bold;
+        }
+
+        /* Search shortcuts */
+        .search-shortcuts {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .search-shortcut {
+            display: inline-block;
+            margin: 0 8px;
+            padding: 2px 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .search-shortcut:hover {
+            background: #d0d0d0;
+        }
+
+        /* Format selection buttons */
+        .format-selection {
+            margin: 20px 0 !important;
+            display: flex !important;
+            gap: 10px !important;
+            align-items: center !important;
+            padding: 15px 20px !important;
+            background: #f8f9fa !important;
+            border: 1px solid #e9ecef !important;
+            border-radius: 6px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        }
+
+        .format-label {
+            font-weight: bold !important;
+            margin-right: 15px !important;
+            color: #333 !important;
+            font-size: 14px !important;
+            vertical-align: middle !important;
+        }
+
+        .format-button {
+            background: #1976d2 !important;
+            color: white !important;
+            border: 1px solid #1976d2 !important;
+            padding: 10px 20px !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            font-size: 14px !important;
+            text-decoration: none !important;
+            display: inline-block !important;
+            font-weight: 500 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
+            margin-right: 10px !important;
+        }
+
+        .format-button:hover {
+            background: #1565c0 !important;
+            color: white !important;
+            text-decoration: none !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+        }
+
+        .format-button:visited {
+            color: white !important;
+        }
+
+        .format-button:active {
+            background: #0d47a1 !important;
+            color: white !important;
+        }
+
+        /* Hide default Swagger UI download URL */
+        .swagger-ui .info .download-url-wrapper {
+            display: none !important;
+        }
+
+        .swagger-ui .download-url {
+            display: none !important;
+        }
+
+        .swagger-ui .info .link {
+            display: none !important;
+        }
+
+        .swagger-ui .info a[href*="swagger.json"] {
+            display: none !important;
+        }
+
+        .swagger-ui .info .url {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Search Interface -->
+    <div class="api-search-container">
+        <div class="api-search-box">
+            <input type="text"
+                   id="apiSearch"
+                   class="search-input"
+                   placeholder="Search endpoints, tags, methods, or descriptions... (e.g., 'POST agents', 'Backend', 'user')"
+                   autocomplete="off">
+            <button class="clear-search" id="clearSearch" title="Clear search">&times;</button>
+            <span class="search-icon">&#128269;</span>
+        </div>
+        <div class="search-results-info" id="searchResults"></div>
+        <div class="search-shortcuts">
+            <span class="search-shortcut" onclick="setSearchFilter('POST')">POST</span>
+            <span class="search-shortcut" onclick="setSearchFilter('GET')">GET</span>
+            <span class="search-shortcut" onclick="setSearchFilter('Backend')">Backend</span>
+            <span class="search-shortcut" onclick="setSearchFilter('Frontend')">Frontend</span>
+            <span class="search-shortcut" onclick="setSearchFilter('admin')">Admin</span>
+            <span class="search-shortcut" onclick="setSearchFilter('api')">API</span>
+            <span class="search-shortcut" onclick="clearSearch()">Clear</span>
+        </div>
+    </div>
+
+    <div id="swagger-ui"></div>
+    <script nonce="{{ csp_nonce }}" src="/static/swagger-ui/swagger-ui-bundle.js"></script>
+    <script nonce="{{ csp_nonce }}" src="/static/swagger-ui/swagger-ui-standalone-preset.js"></script>
+    <script nonce="{{ csp_nonce }}">
+        let currentSpec = null;
+        let allOperations = [];
+
+        function insertFormatButtons() {
+            // Wait a bit for DOM to be fully ready
+            setTimeout(function() {
+                // Find the info section (after title and description)
+                const infoSection = document.querySelector('.swagger-ui .info');
+                if (infoSection && !document.querySelector('.format-selection')) {
+                    // Create format buttons container
+                    const formatDiv = document.createElement('div');
+                    formatDiv.className = 'format-selection';
+                    formatDiv.innerHTML = '<span class="format-label">Download API Specification:</span>' +
+                        '<a href="/swagger.json" class="format-button" target="_blank" title="Download JSON format">JSON Format</a>' +
+                        '<a href="/swagger.yaml" class="format-button" target="_blank" title="Download YAML format">YAML Format</a>';
+
+                    // Insert after the info section
+                    infoSection.parentNode.insertBefore(formatDiv, infoSection.nextSibling);
+                }
+            }, 100);
+        }
+
+        // Search functionality
+        function setupSearch() {
+            const searchInput = document.getElementById('apiSearch');
+            const clearButton = document.getElementById('clearSearch');
+            const resultsInfo = document.getElementById('searchResults');
+
+            // Collect all operations for searching
+            setTimeout(collectOperations, 1000); // Wait for Swagger UI to render
+
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (query) {
+                    clearButton.style.display = 'block';
+                    performSearch(query);
+                } else {
+                    clearButton.style.display = 'none';
+                    clearSearch();
+                }
+            });
+
+            clearButton.addEventListener('click', clearSearch);
+
+            // Keyboard shortcuts
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    clearSearch();
+                }
+            });
+        }
+
+        function collectOperations() {
+            allOperations = [];
+            const operations = document.querySelectorAll('.opblock');
+
+            operations.forEach((op, index) => {
+                const summary = op.querySelector('.opblock-summary-description')?.textContent || '';
+                const path = op.querySelector('.opblock-summary-path')?.textContent || '';
+                const method = op.querySelector('.opblock-summary-method')?.textContent || '';
+                const tags = Array.from(op.closest('.opblock-tag-section')?.querySelectorAll('.opblock-tag') || [])
+                    .map(tag => tag.textContent).join(' ');
+
+                allOperations.push({
+                    element: op,
+                    summary: summary.toLowerCase(),
+                    path: path.toLowerCase(),
+                    method: method.toLowerCase(),
+                    tags: tags.toLowerCase(),
+                    searchText: (summary + ' ' + path + ' ' + method + ' ' + tags).toLowerCase()
+                });
+            });
+
+            console.log('Collected ' + allOperations.length + ' operations for search');
+        }
+
+        function performSearch(query) {
+            const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+            let visibleCount = 0;
+            let totalCount = allOperations.length;
+
+            if (allOperations.length === 0) {
+                collectOperations();
+                if (allOperations.length === 0) {
+                    setTimeout(() => performSearch(query), 500);
+                    return;
+                }
+            }
+
+            allOperations.forEach(op => {
+                let matches = true;
+
+                // Check if all search terms match
+                for (const term of searchTerms) {
+                    if (!op.searchText.includes(term)) {
+                        matches = false;
+                        break;
+                    }
+                }
+
+                if (matches) {
+                    op.element.classList.remove('filtered-out');
+                    visibleCount++;
+                    highlightMatches(op.element, searchTerms);
+                } else {
+                    op.element.classList.add('filtered-out');
+                }
+            });
+
+            // Update results info
+            const resultsInfo = document.getElementById('searchResults');
+            if (visibleCount === 0) {
+                resultsInfo.textContent = 'No results found for "' + query + '"';
+                resultsInfo.style.color = '#e74c3c';
+            } else if (visibleCount === totalCount) {
+                resultsInfo.textContent = 'Showing all ' + totalCount + ' endpoints';
+                resultsInfo.style.color = '#666';
+            } else {
+                resultsInfo.textContent = 'Showing ' + visibleCount + ' of ' + totalCount + ' endpoints';
+                resultsInfo.style.color = '#27ae60';
+            }
+
+            // Hide empty tag sections
+            updateTagSections();
+        }
+
+        function highlightMatches(element, searchTerms) {
+            // Remove existing highlights
+            const highlighted = element.querySelectorAll('.search-highlight');
+            highlighted.forEach(el => {
+                el.outerHTML = el.innerHTML;
+            });
+
+            // Add new highlights
+            const textElements = element.querySelectorAll('.opblock-summary-description, .opblock-summary-path');
+            textElements.forEach(textEl => {
+                let html = textEl.innerHTML;
+                searchTerms.forEach(term => {
+                    const regex = new RegExp('(' + term + ')', 'gi');
+                    html = html.replace(regex, '<span class="search-highlight">$1</span>');
+                });
+                textEl.innerHTML = html;
+            });
+        }
+
+        function updateTagSections() {
+            const tagSections = document.querySelectorAll('.opblock-tag-section');
+            tagSections.forEach(section => {
+                const visibleOps = section.querySelectorAll('.opblock:not(.filtered-out)');
+                if (visibleOps.length === 0) {
+                    section.classList.add('empty-tag');
+                } else {
+                    section.classList.remove('empty-tag');
+                }
+            });
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('apiSearch');
+            const clearButton = document.getElementById('clearSearch');
+            const resultsInfo = document.getElementById('searchResults');
+
+            searchInput.value = '';
+            clearButton.style.display = 'none';
+            resultsInfo.textContent = '';
+
+            // Show all operations
+            allOperations.forEach(op => {
+                op.element.classList.remove('filtered-out');
+                // Remove highlights
+                const highlighted = op.element.querySelectorAll('.search-highlight');
+                highlighted.forEach(el => {
+                    el.outerHTML = el.innerHTML;
+                });
+            });
+
+            // Show all tag sections
+            const tagSections = document.querySelectorAll('.opblock-tag-section');
+            tagSections.forEach(section => section.classList.remove('empty-tag'));
+        }
+
+        function setSearchFilter(term) {
+            const searchInput = document.getElementById('apiSearch');
+            searchInput.value = term;
+            searchInput.focus();
+            performSearch(term);
+        }
+
+        // Initialize Swagger UI
+        window.onload = function() {
+            const ui = SwaggerUIBundle({
+                url: '/swagger.json',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    // DownloadUrl plugin removed to avoid duplicate links
+                ],
+                layout: "StandaloneLayout",
+                validatorUrl: null,
+                docExpansion: "list",
+                defaultModelsExpandDepth: 2,
+                defaultModelExpandDepth: 2,
+                displayRequestDuration: true,
+                tryItOutEnabled: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'],
+                onComplete: function() {
+                    setupSearch();
+                    insertFormatButtons();
+                }
+            });
+        };
+    </script>
+</body>
+</html>

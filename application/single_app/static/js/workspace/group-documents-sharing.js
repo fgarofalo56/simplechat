@@ -229,7 +229,7 @@ window.removeGroupFromDocument = async function(groupId, groupName) {
         return;
     }
     
-    if (!confirm(`Remove sharing with group "${groupName}"?`)) {
+    if (!await showGlobalConfirm(`Remove sharing with group "${groupName}"?`, "Remove Sharing")) {
         return;
     }
     

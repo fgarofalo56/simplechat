@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import re
 import inspect
+from functions_debug import debug_print
 
 class BasePlugin(ABC):
     @property
@@ -83,7 +84,7 @@ class BasePlugin(ABC):
 
         # Debug print for visibility during registration
         for f in functions:
-            print(f"Registering function: {f}")
+            debug_print(f"Registering function: {f}")
 
         return functions
 

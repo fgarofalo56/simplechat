@@ -76,7 +76,7 @@ function openPluginModal(plugin = null) {
     // Set up save handler
     setupSaveHandler(plugin, modal);
   } else {
-    alert('Action modal not available. Please refresh the page.');
+    showGlobalToast('Action modal not available. Please refresh the page.', 'danger');
   }
 }
 
@@ -165,7 +165,7 @@ async function savePlugin(pluginData, existingPlugin = null) {
 }
 
 async function deletePlugin(name) {
-  if (!confirm(`Are you sure you want to delete action "${name}"?`)) return;
+  if (!await showGlobalConfirm(`Are you sure you want to delete action "${name}"?`, "Delete Action")) return;
   
   try {
     const res = await fetch(`/api/user/plugins/${encodeURIComponent(name)}`, {

@@ -17,6 +17,7 @@ from functions_public_workspaces import get_user_visible_public_workspace_ids_fr
 from swagger_wrapper import swagger_route, get_auth_security
 from config import CLIENTS, storage_account_user_documents_container_name, storage_account_group_documents_container_name, storage_account_public_documents_container_name, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS
 from functions_debug import debug_print
+from utils.sanitize import safe_content_disposition
 
 def register_enhanced_citations_routes(app):
     """Register enhanced citations routes"""
@@ -315,7 +316,7 @@ def serve_enhanced_citation_content(raw_doc, content_type=None, force_download=F
             headers={
                 'Content-Length': str(len(content)),
                 'Cache-Control': 'private, max-age=300',  # Cache for 5 minutes
-                'Content-Disposition': f'{disposition}; filename="{raw_doc["file_name"]}"',
+                'Content-Disposition': safe_content_disposition(raw_doc["file_name"], disposition),
                 'Accept-Ranges': 'bytes'  # Support range requests for video/audio
             }
         )
@@ -323,7 +324,7 @@ def serve_enhanced_citation_content(raw_doc, content_type=None, force_download=F
         return response
         
     except Exception as e:
-        print(f"Error serving enhanced citation content: {e}")
+        debug_print(f"Error serving enhanced citation content: {e}")
         raise Exception(f"Failed to load content: {str(e)}")
 
 def serve_enhanced_citation_pdf_content(raw_doc, page_number, show_all=False):
@@ -427,7 +428,7 @@ def serve_enhanced_citation_pdf_content(raw_doc, page_number, show_all=False):
             headers = {
                 'Content-Length': str(len(extracted_content)),
                 'Cache-Control': 'private, max-age=300',  # Cache for 5 minutes
-                'Content-Disposition': f'inline; filename="{raw_doc["file_name"]}"',
+                'Content-Disposition': safe_content_disposition(raw_doc["file_name"], "inline"),
                 'X-Sub-PDF-Page': str(new_page_number),  # Custom header with page info
                 'Accept-Ranges': 'bytes'
             }
@@ -457,5 +458,5 @@ def serve_enhanced_citation_pdf_content(raw_doc, page_number, show_all=False):
                 os.remove(temp_pdf_path)
         
     except Exception as e:
-        print(f"Error serving PDF citation content: {e}")
+        debug_print(f"Error serving PDF citation content: {e}")
         raise Exception(f"Failed to load PDF content: {str(e)}")

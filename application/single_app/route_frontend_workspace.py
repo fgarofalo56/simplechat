@@ -4,6 +4,7 @@ from config import *
 from functions_authentication import *
 from functions_settings import *
 from swagger_wrapper import swagger_route, get_auth_security
+from functions_debug import debug_print
 
 def register_route_frontend_workspace(app):
     @app.route('/workspace', methods=['GET'])
@@ -21,7 +22,7 @@ def register_route_frontend_workspace(app):
         enable_video_file_support = settings.get('enable_video_file_support', False)
         enable_audio_file_support = settings.get('enable_audio_file_support', False)
         if not user_id:
-            print("User not authenticated.")
+            debug_print("User not authenticated.")
             return redirect(url_for('login'))
         
         query = """

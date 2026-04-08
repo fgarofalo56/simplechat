@@ -9,6 +9,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from swagger_wrapper import swagger_route, get_auth_security
 import redis 
+from functions_debug import debug_print
 
 
 def auto_fix_index_fields(idx_type: str, user_id: str = 'system', admin_email: str = None) -> dict:
@@ -732,7 +733,7 @@ def _test_gpt_connection(payload):
         if response:
             return jsonify({'message': 'GPT connection successful'}), 200
     except Exception as e:
-        print(str(e))
+        debug_print(str(e))
         return jsonify({'error': f'Error generating model response: {str(e)}'}), 500
 
 
@@ -781,7 +782,7 @@ def _test_redis_connection(payload):
             return jsonify({'error': 'Redis test failed: unexpected value'}), 500
 
     except Exception as e:
-        print(f"Redis test error: {e}")
+        debug_print(f"Redis test error: {e}")
         return jsonify({'error': f'Redis connection error: {str(e)}'}), 500
 
 
@@ -835,7 +836,7 @@ def _test_embedding_connection(payload):
         if response:
             return jsonify({'message': 'Embedding connection successful'}), 200
     except Exception as e:
-        print(str(e))
+        debug_print(str(e))
         return jsonify({'error': f'Error generating embedding response: {str(e)}'}), 500
     
 
@@ -888,7 +889,7 @@ def _test_image_gen_connection(payload):
         if response:
             return jsonify({'message': 'Image generation connection successful'}), 200
     except Exception as e:
-        print(str(e))
+        debug_print(str(e))
         return jsonify({'error': f'Error generating model response: {str(e)}'}), 500
 
 

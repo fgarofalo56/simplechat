@@ -146,7 +146,7 @@ $(document).ready(function () {
   $("#bulkAssignRoleBtn").on("click", function () {
     const selectedMembers = getSelectedMembers();
     if (selectedMembers.length === 0) {
-      alert("Please select at least one member");
+      showGlobalToast("Please select at least one member", "warning");
       return;
     }
     $("#bulkRoleCount").text(selectedMembers.length);
@@ -161,7 +161,7 @@ $(document).ready(function () {
   $("#bulkRemoveMembersBtn").on("click", function () {
     const selectedMembers = getSelectedMembers();
     if (selectedMembers.length === 0) {
-      alert("Please select at least one member");
+      showGlobalToast("Please select at least one member", "warning");
       return;
     }
     
@@ -239,8 +239,9 @@ $(document).ready(function () {
         $("#deleteGroupWarningModal").modal("show");
         return;
       } else {
+        (async () => {
         if (
-          !confirm("Are you sure you want to permanently delete this group?")
+          !await showGlobalConfirm("Are you sure you want to permanently delete this group?", "Delete Group")
         ) {
           return;
         }
@@ -248,22 +249,23 @@ $(document).ready(function () {
           url: `/api/groups/${groupId}`,
           method: "DELETE",
           success: function (resp) {
-            alert("Group deleted successfully!");
+            showGlobalToast("Group deleted successfully!", "success");
             window.location.href = "/my_groups";
           },
           error: function (err) {
             console.error(err);
             if (err.responseJSON && err.responseJSON.error) {
-              alert("Error: " + err.responseJSON.error);
+              showGlobalToast("Error: " + err.responseJSON.error, "danger");
             } else {
-              alert("Failed to delete group.");
+              showGlobalToast("Failed to delete group.", "danger");
             }
           },
         });
+        })();
       }
     }).fail(function (err) {
       console.error(err);
-      alert("Unable to check file count. Cannot proceed with deletion.");
+      showGlobalToast("Unable to check file count. Cannot proceed with deletion.", "danger");
     });
   });
 });
@@ -346,26 +348,26 @@ function loadGroupInfo(doneCallback) {
     }
   }).fail(function (err) {
     console.error(err);
-    alert("Failed to load group info.");
+    showGlobalToast("Failed to load group info.", "danger");
   });
 }
 
-function leaveGroup() {
-  if (!confirm("Are you sure you want to leave this group?")) return;
+async function leaveGroup() {
+  if (!await showGlobalConfirm("Are you sure you want to leave this group?", "Leave Group")) return;
 
   $.ajax({
     url: `/api/groups/${groupId}/members/${userId}`,
     method: "DELETE",
     success: function (resp) {
-      alert("You have left the group.");
+      showGlobalToast("You have left the group.", "success");
       window.location.href = "/my_groups";
     },
     error: function (err) {
       console.error(err);
       if (err.responseJSON && err.responseJSON.error) {
-        alert("Error: " + err.responseJSON.error);
+        showGlobalToast("Error: " + err.responseJSON.error, "danger");
       } else {
-        alert("Unable to leave group.");
+        showGlobalToast("Unable to leave group.", "danger");
       }
     },
   });
@@ -382,12 +384,12 @@ function updateGroupInfo() {
     contentType: "application/json",
     data: JSON.stringify(data),
     success: function () {
-      alert("Group updated successfully!");
+      showGlobalToast("Group updated successfully!", "success");
       loadGroupInfo();
     },
     error: function (err) {
       console.error(err);
-      alert("Failed to update group info.");
+      showGlobalToast("Failed to update group info.", "danger");
     },
   });
 }
@@ -500,8 +502,8 @@ function setRole(userId, newRole) {
   });
 }
 
-function removeMember(userId) {
-  if (!confirm("Are you sure you want to remove this member?")) return;
+async function removeMember(userId) {
+  if (!await showGlobalConfirm("Are you sure you want to remove this member?", "Remove Member")) return;
   $.ajax({
     url: `/api/groups/${groupId}/members/${userId}`,
     method: "DELETE",
@@ -564,7 +566,7 @@ function approveRequest(requestId) {
     },
     error: function (err) {
       console.error(err);
-      alert("Failed to approve request.");
+      showGlobalToast("Failed to approve request.", "danger");
     },
   });
 }
@@ -580,7 +582,7 @@ function rejectRequest(requestId) {
     },
     error: function (err) {
       console.error(err);
-      alert("Failed to reject request.");
+      showGlobalToast("Failed to reject request.", "danger");
     },
   });
 }
@@ -666,7 +668,7 @@ function addMemberDirectly() {
   const email = $("#newUserEmail").val().trim();
 
   if (!userId) {
-    alert("Please select or enter a valid user ID.");
+    showGlobalToast("Please select or enter a valid user ID.", "warning");
     return;
   }
 
@@ -681,7 +683,7 @@ function addMemberDirectly() {
     },
     error: function (err) {
       console.error(err);
-      alert("Failed to add member directly.");
+      showGlobalToast("Failed to add member directly.", "danger");
     },
   });
 }
@@ -1182,7 +1184,12 @@ function showRawActivity(element) {
     const activityJson = element.getAttribute('data-activity');
     const activity = JSON.parse(activityJson);
     const modalBody = document.getElementById('rawActivityModalBody');
-    modalBody.innerHTML = `<pre><code>${JSON.stringify(activity, null, 2)}</code></pre>`;
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.textContent = JSON.stringify(activity, null, 2);
+    pre.appendChild(code);
+    modalBody.innerHTML = '';
+    modalBody.appendChild(pre);
     $('#rawActivityModal').modal('show');
   } catch (error) {
     console.error('Error showing raw activity:', error);
@@ -1214,7 +1221,7 @@ function showCsvError(message) {
 
 function startCsvUpload() {
   if (csvParsedData.length === 0) {
-    alert("No valid data to upload");
+    showGlobalToast("No valid data to upload", "warning");
     return;
   }
 
@@ -1381,7 +1388,7 @@ async function bulkAssignRole() {
   const newRole = $("#bulkRoleSelect").val();
   
   if (selectedMembers.length === 0) {
-    alert("No members selected");
+    showGlobalToast("No members selected", "warning");
     return;
   }
 
@@ -1417,14 +1424,11 @@ async function bulkAssignRole() {
   }
 
   // Show summary
-  let message = `Role assignment complete:\n✅ Success: ${successCount}\n❌ Failed: ${failedCount}`;
-  if (failures.length > 0) {
-    message += "\n\nFailed members:\n" + failures.slice(0, 5).join("\n");
-    if (failures.length > 5) {
-      message += `\n... and ${failures.length - 5} more`;
-    }
+  if (failedCount > 0) {
+    showGlobalToast(`Role assignment complete: ${successCount} succeeded, ${failedCount} failed.`, "warning");
+  } else {
+    showGlobalToast(`Role assignment complete: ${successCount} succeeded.`, "success");
   }
-  alert(message);
 
   // Reload members and clear selection
   loadMembers();
@@ -1434,7 +1438,7 @@ async function bulkRemoveMembers() {
   const selectedMembers = getSelectedMembers();
 
   if (selectedMembers.length === 0) {
-    alert("No members selected");
+    showGlobalToast("No members selected", "warning");
     return;
   }
 
@@ -1468,14 +1472,11 @@ async function bulkRemoveMembers() {
   }
 
   // Show summary
-  let message = `Member removal complete:\n✅ Success: ${successCount}\n❌ Failed: ${failedCount}`;
-  if (failures.length > 0) {
-    message += "\n\nFailed removals:\n" + failures.slice(0, 5).join("\n");
-    if (failures.length > 5) {
-      message += `\n... and ${failures.length - 5} more`;
-    }
+  if (failedCount > 0) {
+    showGlobalToast(`Member removal complete: ${successCount} succeeded, ${failedCount} failed.`, "warning");
+  } else {
+    showGlobalToast(`Member removal complete: ${successCount} succeeded.`, "success");
   }
-  alert(message);
 
   // Reload members and clear selection
   loadMembers();

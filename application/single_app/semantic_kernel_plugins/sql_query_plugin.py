@@ -13,6 +13,7 @@ from semantic_kernel_plugins.base_plugin import BasePlugin
 from semantic_kernel.functions import kernel_function
 from functions_appinsights import log_event
 from semantic_kernel_plugins.plugin_invocation_logger import plugin_function_logger
+from functions_debug import debug_print
 
 # Helper class to wrap results with metadata
 class ResultWithMetadata:
@@ -60,13 +61,13 @@ class SQLQueryPlugin(BasePlugin):
             "has_username": bool(self.username),
             "manifest_keys": list(manifest.keys())
         })
-        print(f"[SQLQueryPlugin] Initializing - DB Type: {self.database_type}, Auth: {self.auth_type}, Server: {self.server}, Database: {self.database}, Read-Only: {self.read_only}")
+        debug_print(f"[SQLQueryPlugin] Initializing - DB Type: {self.database_type}, Auth: {self.auth_type}, Server: {self.server}, Database: {self.database}, Read-Only: {self.read_only}")
         
         # Validate required configuration
         if not self.connection_string and not (self.server and self.database):
             error_msg = "SQLQueryPlugin requires either 'connection_string' or 'server' and 'database' in the manifest."
             log_event(f"[SQLQueryPlugin] Configuration error: {error_msg}", extra={"manifest": manifest})
-            print(f"[SQLQueryPlugin] ERROR: {error_msg}")
+            debug_print(f"[SQLQueryPlugin] ERROR: {error_msg}")
             raise ValueError(error_msg)
         
         # Set up database-specific configurations
@@ -74,7 +75,7 @@ class SQLQueryPlugin(BasePlugin):
         
         # Initialize connection (lazy loading)
         self._connection = None
-        print(f"[SQLQueryPlugin] Initialization complete")
+        debug_print(f"[SQLQueryPlugin] Initialization complete")
 
     def _setup_database_config(self):
         """Setup database-specific configurations and import requirements"""

@@ -381,7 +381,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function updateVideoIndexerModalInfo() {
     const videoEnabled = document.getElementById('enable_video_file_support')?.checked || false;
     const videoEndpoint = document.getElementById('video_indexer_endpoint')?.value?.trim() || '';

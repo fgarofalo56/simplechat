@@ -1,0 +1,60 @@
+# docker-compose.yml
+# Local development environment for SimpleChat.
+# Usage:
+#   docker compose up          # Start all services
+#   docker compose up -d       # Start in background
+#   docker compose down        # Stop all services
+#   docker compose logs -f app # Follow app logs
+
+services:
+  # Flask application
+  app:
+    build:
+      context: .
+      dockerfile: application/single_app/Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - application/single_app/.env
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./application/single_app:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      python -m flask run --host=0.0.0.0 --port=5000 --debug
+
+  # Redis for session storage and rate limiting
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # Azure Storage emulator (Azurite) for blob storage
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"  # Blob service
+      - "10001:10001"  # Queue service
+      - "10002:10002"  # Table service
+    volumes:
+      - azurite-data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  azurite-data:

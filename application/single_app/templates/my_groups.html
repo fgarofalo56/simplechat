@@ -181,7 +181,7 @@
 
 {% block scripts %}
 {{ super() }} <!-- Keep this if base.html includes scripts -->
-<script>
+<script nonce="{{ csp_nonce }}">
   // Helper function
   function escapeHtml(unsafe) {
     if (unsafe === null || typeof unsafe === 'undefined') {

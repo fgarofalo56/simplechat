@@ -1,0 +1,192 @@
+# .github/workflows/test.yml
+# CI pipeline for SimpleChat — linting, testing, and security scanning.
+# Triggered on pull requests to main and Development branches.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main, Development]
+  push:
+    branches: [main, Development]
+
+defaults:
+  run:
+    working-directory: application/single_app
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff==0.8.6
+
+      - name: Run ruff check
+        run: ruff check .
+
+      - name: Run ruff format check
+        run: ruff format --check .
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: "ci-test-secret-key-not-for-production-use-1234567890"
+      CLIENT_ID: "00000000-0000-0000-0000-000000000000"
+      TENANT_ID: "00000000-0000-0000-0000-000000000000"
+      MICROSOFT_PROVIDER_AUTHENTICATION_SECRET: "ci-test-secret"
+      LOGIN_REDIRECT_URL: "http://localhost:5000/callback"
+      HOME_REDIRECT_URL: "http://localhost:5000"
+      FLASK_ENV: "testing"
+      TESTING: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=20 \
+            -v \
+            --tb=short
+
+      - name: Check services/ coverage meets 40% threshold
+        run: |
+          pytest tests/ \
+            --cov=services \
+            --cov-report=term-missing \
+            --cov-fail-under=40 \
+            --tb=short \
+            -q
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: application/single_app/coverage.xml
+
+  coverage-gate:
+    name: Coverage Gate
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    env:
+      SECRET_KEY: "ci-test-secret-key-not-for-production-use-1234567890"
+      CLIENT_ID: "00000000-0000-0000-0000-000000000000"
+      TENANT_ID: "00000000-0000-0000-0000-000000000000"
+      MICROSOFT_PROVIDER_AUTHENTICATION_SECRET: "ci-test-secret"
+      LOGIN_REDIRECT_URL: "http://localhost:5000/callback"
+      HOME_REDIRECT_URL: "http://localhost:5000"
+      FLASK_ENV: "testing"
+      TESTING: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+        working-directory: application/single_app
+
+      - name: Generate coverage JSON
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=json:coverage.json \
+            --tb=short \
+            -q
+        working-directory: application/single_app
+
+      - name: Check for coverage regression
+        run: |
+          python -c "
+          import json, sys
+
+          with open('coverage.json') as f:
+              data = json.load(f)
+
+          total_pct = data['totals']['percent_covered']
+          print(f'Overall coverage: {total_pct:.1f}%')
+
+          # Check minimum overall coverage threshold
+          MIN_OVERALL = 20
+          if total_pct < MIN_OVERALL:
+              print(f'FAIL: Overall coverage {total_pct:.1f}% is below minimum {MIN_OVERALL}%')
+              sys.exit(1)
+
+          # Check services/ coverage
+          services_files = {k: v for k, v in data['files'].items()
+                           if k.startswith('services/') or k.startswith('services\\\\')}
+          if services_files:
+              total_stmts = sum(v['summary']['num_statements'] for v in services_files.values())
+              covered_stmts = sum(v['summary']['covered_lines'] for v in services_files.values())
+              services_pct = (covered_stmts / total_stmts * 100) if total_stmts > 0 else 0
+              print(f'Services coverage: {services_pct:.1f}% ({covered_stmts}/{total_stmts} stmts)')
+
+              MIN_SERVICES = 40
+              if services_pct < MIN_SERVICES:
+                  print(f'FAIL: Services coverage {services_pct:.1f}% is below minimum {MIN_SERVICES}%')
+                  sys.exit(1)
+
+          print('Coverage gates passed!')
+          "
+        working-directory: application/single_app
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.3
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pip-audit
+        run: |
+          pip-audit \
+            --strict \
+            --desc \
+            --fix \
+            --dry-run \
+            || echo "::warning::pip-audit found vulnerabilities. Review the output above."
+        continue-on-error: true

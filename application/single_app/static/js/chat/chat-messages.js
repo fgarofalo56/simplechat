@@ -601,9 +601,9 @@ export function appendMessage(
     
     // Use agent display name if available, otherwise show AI with model
     if (agentDisplayName) {
-      senderLabel = agentDisplayName;
+      senderLabel = escapeHtml(agentDisplayName);
     } else if (modelName) {
-      senderLabel = `AI <span style="color: #6c757d; font-size: 0.8em;">(${modelName})</span>`;
+      senderLabel = `AI <span style="color: #6c757d; font-size: 0.8em;">(${escapeHtml(modelName)})</span>`;
     } else {
       senderLabel = "AI";
     }
@@ -641,7 +641,7 @@ export function appendMessage(
         ` : '';
     
     const copyButtonHtml = `
-            <button class="copy-btn btn btn-sm btn-link text-muted" data-hidden-text-id="${hiddenTextId}" title="Copy AI response as Markdown">
+            <button class="copy-btn btn btn-sm btn-link text-muted" data-hidden-text-id="${hiddenTextId}" title="Copy AI response as Markdown" aria-label="Copy AI response as Markdown">
                 <i class="bi bi-copy"></i>
             </button>
             <textarea id="${hiddenTextId}" style="display:none;">${escapeHtml(
@@ -1008,9 +1008,9 @@ export function appendMessage(
       if (isUserUpload) {
         senderLabel = "Uploaded Image";
       } else if (agentDisplayName) {
-        senderLabel = agentDisplayName;
+        senderLabel = escapeHtml(agentDisplayName);
       } else if (modelName) {
-        senderLabel = `AI <span style="color: #6c757d; font-size: 0.8em;">(${modelName})</span>`;
+        senderLabel = `AI <span style="color: #6c757d; font-size: 0.8em;">(${escapeHtml(modelName)})</span>`;
       } else {
         senderLabel = "Image";
       }
@@ -1018,9 +1018,10 @@ export function appendMessage(
       avatarImg = isUserUpload ? "/static/images/user-avatar.png" : "/static/images/ai-avatar.png";
       avatarAltText = isUserUpload ? "Uploaded Image" : "Generated Image";
       
-      // Validate image URL before creating img tag
+      // Validate image URL before creating img tag - sanitize src to prevent XSS
       if (messageContent && messageContent !== 'null' && messageContent.trim() !== '') {
-        messageContentHtml = `<img src="${messageContent}" alt="${isUserUpload ? 'Uploaded' : 'Generated'} Image" class="generated-image" style="width: 170px; height: 170px; cursor: pointer;" data-image-src="${messageContent}" onload="scrollChatToBottom()" onerror="this.src='/static/images/image-error.png'; this.alt='Failed to load image';" />`;
+        const safeSrc = escapeHtml(messageContent);
+        messageContentHtml = `<img src="${safeSrc}" alt="${isUserUpload ? 'Uploaded' : 'Generated'} Image" class="generated-image" style="width: 170px; height: 170px; cursor: pointer;" data-image-src="${safeSrc}" onload="scrollChatToBottom()" onerror="this.src='/static/images/image-error.png'; this.alt='Failed to load image';" />`;
       } else {
         messageContentHtml = `<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Failed to ${isUserUpload ? 'load' : 'generate'} image - invalid response from image service</div>`;
       }
@@ -2610,10 +2611,10 @@ function loadMessageMetadataForDisplay(messageId, container) {
         html += '<div class="mb-3">';
         html += '<div class="fw-bold mb-2"><i class="bi bi-diagram-3 me-2"></i>Thread Information</div>';
         html += '<div class="ms-3 small">';
-        html += `<div class="mb-1"><span class="text-muted">Thread ID:</span> <code class="ms-2">${threadInfo.thread_id}</code></div>`;
-        html += `<div class="mb-1"><span class="text-muted">Previous Thread:</span> <code class="ms-2">${threadInfo.previous_thread_id || 'None (first message)'}</code></div>`;
+        html += `<div class="mb-1"><span class="text-muted">Thread ID:</span> <code class="ms-2">${escapeHtml(threadInfo.thread_id)}</code></div>`;
+        html += `<div class="mb-1"><span class="text-muted">Previous Thread:</span> <code class="ms-2">${escapeHtml(threadInfo.previous_thread_id || 'None (first message)')}</code></div>`;
         html += `<div class="mb-1"><span class="text-muted">Active:</span> <span class="ms-2 badge ${threadInfo.active_thread ? 'bg-success' : 'bg-secondary'}">${threadInfo.active_thread ? 'Yes' : 'No'}</span></div>`;
-        html += `<div><span class="text-muted">Attempt:</span> <span class="ms-2 badge bg-info">${threadInfo.thread_attempt || 1}</span></div>`;
+        html += `<div><span class="text-muted">Attempt:</span> <span class="ms-2 badge bg-info">${escapeHtml(String(threadInfo.thread_attempt || 1))}</span></div>`;
         html += '</div></div>';
       }
       
@@ -2621,10 +2622,10 @@ function loadMessageMetadataForDisplay(messageId, container) {
       html += '<div class="mb-3">';
       html += '<div class="fw-bold mb-2"><i class="bi bi-chat-left-text me-2"></i>Message Details</div>';
       html += '<div class="ms-3 small">';
-      if (metadata.id) html += `<div class="mb-1"><span class="text-muted">Message ID:</span> <code class="ms-2">${metadata.id}</code></div>`;
-      if (metadata.conversation_id) html += `<div class="mb-1"><span class="text-muted">Conversation ID:</span> <code class="ms-2">${metadata.conversation_id}</code></div>`;
-      if (metadata.role) html += `<div class="mb-1"><span class="text-muted">Role:</span> <span class="ms-2 badge bg-primary">${metadata.role}</span></div>`;
-      if (metadata.timestamp) html += `<div class="mb-1"><span class="text-muted">Timestamp:</span> <code class="ms-2">${new Date(metadata.timestamp).toLocaleString()}</code></div>`;
+      if (metadata.id) html += `<div class="mb-1"><span class="text-muted">Message ID:</span> <code class="ms-2">${escapeHtml(metadata.id)}</code></div>`;
+      if (metadata.conversation_id) html += `<div class="mb-1"><span class="text-muted">Conversation ID:</span> <code class="ms-2">${escapeHtml(metadata.conversation_id)}</code></div>`;
+      if (metadata.role) html += `<div class="mb-1"><span class="text-muted">Role:</span> <span class="ms-2 badge bg-primary">${escapeHtml(metadata.role)}</span></div>`;
+      if (metadata.timestamp) html += `<div class="mb-1"><span class="text-muted">Timestamp:</span> <code class="ms-2">${escapeHtml(new Date(metadata.timestamp).toLocaleString())}</code></div>`;
       html += '</div></div>';
       
       // Image/File specific info
@@ -2632,8 +2633,8 @@ function loadMessageMetadataForDisplay(messageId, container) {
         html += '<div class="mb-3">';
         html += '<div class="fw-bold mb-2"><i class="bi bi-image me-2"></i>Image Details</div>';
         html += '<div class="ms-3 small">';
-        if (metadata.filename) html += `<div class="mb-1"><span class="text-muted">Filename:</span> <code class="ms-2">${metadata.filename}</code></div>`;
-        if (metadata.prompt) html += `<div class="mb-1"><span class="text-muted">Prompt:</span> <span class="ms-2">${metadata.prompt}</span></div>`;
+        if (metadata.filename) html += `<div class="mb-1"><span class="text-muted">Filename:</span> <code class="ms-2">${escapeHtml(metadata.filename)}</code></div>`;
+        if (metadata.prompt) html += `<div class="mb-1"><span class="text-muted">Prompt:</span> <span class="ms-2">${escapeHtml(metadata.prompt)}</span></div>`;
         if (metadata.metadata?.is_chunked !== undefined) html += `<div class="mb-1"><span class="text-muted">Chunked:</span> <span class="ms-2 badge ${metadata.metadata.is_chunked ? 'bg-warning' : 'bg-success'}">${metadata.metadata.is_chunked ? 'Yes' : 'No'}</span></div>`;
         if (metadata.metadata?.is_user_upload !== undefined) html += `<div class="mb-1"><span class="text-muted">User Upload:</span> <span class="ms-2 badge ${metadata.metadata.is_user_upload ? 'bg-info' : 'bg-secondary'}">${metadata.metadata.is_user_upload ? 'Yes' : 'No'}</span></div>`;
         html += '</div></div>';
@@ -2641,26 +2642,26 @@ function loadMessageMetadataForDisplay(messageId, container) {
         html += '<div class="mb-3">';
         html += '<div class="fw-bold mb-2"><i class="bi bi-file-earmark me-2"></i>File Details</div>';
         html += '<div class="ms-3 small">';
-        if (metadata.filename) html += `<div class="mb-1"><span class="text-muted">Filename:</span> <code class="ms-2">${metadata.filename}</code></div>`;
+        if (metadata.filename) html += `<div class="mb-1"><span class="text-muted">Filename:</span> <code class="ms-2">${escapeHtml(metadata.filename)}</code></div>`;
         if (metadata.is_table !== undefined) html += `<div class="mb-1"><span class="text-muted">Table Data:</span> <span class="ms-2 badge ${metadata.is_table ? 'bg-success' : 'bg-secondary'}">${metadata.is_table ? 'Yes' : 'No'}</span></div>`;
         html += '</div></div>';
       }
-      
+
       // Generation Details (for assistant, image, and file messages)
       if (metadata.role === 'assistant' || metadata.role === 'image' || metadata.role === 'file') {
         html += '<div class="mb-3">';
         html += '<div class="fw-bold mb-2"><i class="bi bi-cpu me-2"></i>Generation Details</div>';
         html += '<div class="ms-3 small">';
-        
+
         // Model and Agent info (for all types)
-        if (metadata.model_deployment_name) html += `<div class="mb-1"><span class="text-muted">Model:</span> <code class="ms-2">${metadata.model_deployment_name}</code></div>`;
-        if (metadata.agent_name) html += `<div class="mb-1"><span class="text-muted">Agent:</span> <code class="ms-2">${metadata.agent_name}</code></div>`;
-        if (metadata.agent_display_name) html += `<div class="mb-1"><span class="text-muted">Agent Display Name:</span> <span class="ms-2">${metadata.agent_display_name}</span></div>`;
+        if (metadata.model_deployment_name) html += `<div class="mb-1"><span class="text-muted">Model:</span> <code class="ms-2">${escapeHtml(metadata.model_deployment_name)}</code></div>`;
+        if (metadata.agent_name) html += `<div class="mb-1"><span class="text-muted">Agent:</span> <code class="ms-2">${escapeHtml(metadata.agent_name)}</code></div>`;
+        if (metadata.agent_display_name) html += `<div class="mb-1"><span class="text-muted">Agent Display Name:</span> <span class="ms-2">${escapeHtml(metadata.agent_display_name)}</span></div>`;
         
         // Assistant-specific info
         if (metadata.role === 'assistant') {
           if (metadata.augmented !== undefined) html += `<div class="mb-1"><span class="text-muted">Augmented:</span> <span class="ms-2 badge ${metadata.augmented ? 'bg-success' : 'bg-secondary'}">${metadata.augmented ? 'Yes' : 'No'}</span></div>`;
-          if (metadata.metadata?.reasoning_effort) html += `<div class="mb-1"><span class="text-muted">Reasoning Effort:</span> <code class="ms-2">${metadata.metadata.reasoning_effort}</code></div>`;
+          if (metadata.metadata?.reasoning_effort) html += `<div class="mb-1"><span class="text-muted">Reasoning Effort:</span> <code class="ms-2">${escapeHtml(metadata.metadata.reasoning_effort)}</code></div>`;
           if (metadata.hybrid_citations && metadata.hybrid_citations.length > 0) html += `<div class="mb-1"><span class="text-muted">Document Citations:</span> <span class="ms-2 badge bg-info">${metadata.hybrid_citations.length}</span></div>`;
           if (metadata.agent_citations && metadata.agent_citations.length > 0) html += `<div class="mb-1"><span class="text-muted">Agent Citations:</span> <span class="ms-2 badge bg-info">${metadata.agent_citations.length}</span></div>`;
         }
@@ -2784,8 +2785,10 @@ export function applySearchHighlight(searchTerm) {
     textNodes.forEach(textNode => {
       const text = textNode.nodeValue;
       if (regex.test(text)) {
+        regex.lastIndex = 0; // Reset regex after test()
         const span = document.createElement('span');
-        span.innerHTML = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+        // Escape the text first to prevent XSS, then apply highlight markup
+        span.innerHTML = escapeHtml(text).replace(regex, '<mark class="search-highlight">$1</mark>');
         textNode.parentNode.replaceChild(span, textNode);
       }
     });

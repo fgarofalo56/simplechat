@@ -288,7 +288,7 @@ if (promptForm && promptSaveBtn && promptModalEl) {
             })
             .catch(err => {
                 console.error(`Error ${method === 'POST' ? 'creating' : 'updating'} prompt:`, err);
-                alert(`Error ${method === 'POST' ? 'creating' : 'updating'} prompt: ` + (err.error || err.message || "Unknown error"));
+                showGlobalToast(`Error ${method === 'POST' ? 'creating' : 'updating'} prompt: ` + (err.error || err.message || "Unknown error"), 'danger');
             })
             .finally(() => {
                 promptSaveBtn.disabled = false;
@@ -378,13 +378,13 @@ window.onEditPrompt = function (promptId) {
         })
         .catch(err => {
             console.error("Error retrieving prompt for edit:", err);
-            alert("Error retrieving prompt: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error retrieving prompt: " + (err.error || err.message || "Unknown error"), 'danger');
         });
 };
 
 // Delete Prompt (Remains the same, but calls fetchUserPrompts at the end)
-window.onDeletePrompt = function (promptId, event) {
-    if (!confirm("Are you sure you want to delete this prompt?")) return;
+window.onDeletePrompt = async function (promptId, event) {
+    if (!await showGlobalConfirm("Are you sure you want to delete this prompt?", "Delete Prompt")) return;
 
     const deleteBtn = event ? event.target.closest('button') : null;
     if (deleteBtn) {
@@ -400,7 +400,7 @@ window.onDeletePrompt = function (promptId, event) {
         })
         .catch(err => {
             console.error("Error deleting prompt:", err);
-            alert("Error deleting prompt: " + (err.error || err.message || "Unknown error"));
+            showGlobalToast("Error deleting prompt: " + (err.error || err.message || "Unknown error"), 'danger');
             if (deleteBtn) {
                     deleteBtn.disabled = false;
                     deleteBtn.innerHTML = '<i class="bi bi-trash-fill"></i> Delete';

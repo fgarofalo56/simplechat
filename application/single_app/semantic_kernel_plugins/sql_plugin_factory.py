@@ -8,6 +8,7 @@ import os
 import json
 from .sql_schema_plugin import SQLSchemaPlugin
 from .sql_query_plugin import SQLQueryPlugin
+from functions_debug import debug_print
 
 class SQLPluginFactory:
     """Factory class for creating SQL plugins with common configurations"""
@@ -311,7 +312,7 @@ class SQLPluginRegistry:
         self.registered_plugins[schema_plugin_name] = schema_plugin
         self.registered_plugins[query_plugin_name] = query_plugin
         
-        print(f"✅ Registered {database_type} plugins: {schema_plugin_name}, {query_plugin_name}")
+        debug_print(f"✅ Registered {database_type} plugins: {schema_plugin_name}, {query_plugin_name}")
         
         return schema_plugin, query_plugin
     
@@ -327,7 +328,7 @@ class SQLPluginRegistry:
         """Unregister a plugin"""
         if plugin_name in self.registered_plugins:
             del self.registered_plugins[plugin_name]
-            print(f"🗑️  Unregistered plugin: {plugin_name}")
+            debug_print(f"🗑️  Unregistered plugin: {plugin_name}")
 
 def load_plugin_config(config_file: str) -> Dict[str, Any]:
     """

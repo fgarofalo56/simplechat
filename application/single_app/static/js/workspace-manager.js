@@ -1160,7 +1160,7 @@ window.WorkspaceManager = {
             
         } catch (error) {
             console.error('Error exporting activity:', error);
-            alert(`Error exporting activity: ${error.message}`);
+            showGlobalToast(`Error exporting activity: ${error.message}`, 'danger');
         }
     },
 
@@ -1182,7 +1182,7 @@ window.WorkspaceManager = {
     searchUsersForAdd: function() {
         const searchTerm = document.getElementById('wsUserSearchTerm').value.trim();
         if (!searchTerm || searchTerm.length < 2) {
-            alert('Please enter at least 2 characters to search');
+            showGlobalToast('Please enter at least 2 characters to search', 'warning');
             return;
         }
         
@@ -1216,7 +1216,7 @@ window.WorkspaceManager = {
             })
             .catch(error => {
                 console.error('Error searching users:', error);
-                alert('Failed to search users');
+                showGlobalToast('Failed to search users', 'danger');
             })
             .finally(() => {
                 searchBtn.disabled = false;
@@ -1281,7 +1281,7 @@ window.WorkspaceManager = {
         document.getElementById('wsSearchResultsContainer').style.display = 'none';
         document.getElementById('wsUserSearchTerm').value = '';
         
-        alert('User selected. Choose a role and click Add Member.');
+        showGlobalToast('User selected. Choose a role and click Add Member.', 'info');
     },
 
     addMemberDirectly: function() {
@@ -1292,33 +1292,33 @@ window.WorkspaceManager = {
         
         // Validate required fields
         if (!userId) {
-            alert('User ID is required');
+            showGlobalToast('User ID is required', 'warning');
             return;
         }
         if (!displayName) {
-            alert('Display Name is required');
+            showGlobalToast('Display Name is required', 'warning');
             return;
         }
         if (!email) {
-            alert('Email is required');
+            showGlobalToast('Email is required', 'warning');
             return;
         }
         if (!role) {
-            alert('Role is required');
+            showGlobalToast('Role is required', 'warning');
             return;
         }
         
         // Validate GUID format for user ID
         const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
         if (!guidRegex.test(userId)) {
-            alert('User ID must be a valid GUID format');
+            showGlobalToast('User ID must be a valid GUID format', 'warning');
             return;
         }
         
         // Validate email format
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            alert('Invalid email format');
+            showGlobalToast('Invalid email format', 'warning');
             return;
         }
         
@@ -1348,9 +1348,9 @@ window.WorkspaceManager = {
         })
         .then(data => {
             if (data.error) {
-                alert(data.error);
+                showGlobalToast(data.error, 'danger');
             } else {
-                alert(`Successfully added ${displayName} as ${role}`);
+                showGlobalToast(`Successfully added ${displayName} as ${role}`, 'success');
                 
                 // Close modal
                 const modalElement = document.getElementById('addWorkspaceMemberModal');
@@ -1363,7 +1363,7 @@ window.WorkspaceManager = {
         })
         .catch(error => {
             console.error('Error adding member:', error);
-            alert('Failed to add member');
+            showGlobalToast('Failed to add member', 'danger');
         })
         .finally(() => {
             submitBtn.disabled = false;

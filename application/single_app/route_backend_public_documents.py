@@ -205,17 +205,17 @@ def register_route_backend_public_documents(app):
                     params.append({'name': param_name, 'value': tag})
                 param_count += len(tags_list)
 
-        where = ' AND '.join(conds)
-
         # count
-        count_q = f'SELECT VALUE COUNT(1) FROM c WHERE {where}'
+        count_q = 'SELECT VALUE COUNT(1) FROM c WHERE ' + ' AND '.join(conds)
         total = list(cosmos_public_documents_container.query_items(
             query=count_q, parameters=params, enable_cross_partition_query=True
         ))
         total_count = total[0] if total else 0
 
-        # data
-        data_q = f'SELECT * FROM c WHERE {where} ORDER BY c.{sort_by} {sort_order} OFFSET {offset} LIMIT {page_size}'
+        # data - validate offset and page_size as integers (Cosmos doesn't support parameterized OFFSET/LIMIT)
+        offset = int(offset)
+        page_size = int(page_size)
+        data_q = 'SELECT * FROM c WHERE ' + ' AND '.join(conds) + f' ORDER BY c.{sort_by} {sort_order} OFFSET {offset} LIMIT {page_size}'
         docs = list(cosmos_public_documents_container.query_items(
             query=data_q, parameters=params, enable_cross_partition_query=True
         ))
@@ -275,7 +275,7 @@ def register_route_backend_public_documents(app):
 
         # Query documents from all visible public workspaces
         workspace_conditions = " OR ".join([f"c.public_workspace_id = @ws_{i}" for i in range(len(workspace_ids))])
-        query = f'SELECT * FROM c WHERE {workspace_conditions} ORDER BY c._ts DESC'
+        query = 'SELECT * FROM c WHERE ' + workspace_conditions + ' ORDER BY c._ts DESC'
         params = [{'name': f'@ws_{i}', 'value': workspace_id} for i, workspace_id in enumerate(workspace_ids)]
         
         docs = list(cosmos_public_documents_container.query_items(

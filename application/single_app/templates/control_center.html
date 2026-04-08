@@ -2819,17 +2819,17 @@
 </div>
 
 <!-- Control Center Scripts -->
-<script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+<script nonce="{{ csp_nonce }}">
 // Pass user role information to JavaScript
 window.hasControlCenterAdmin = {{ 'true' if has_control_center_admin else 'false' }};
 </script>
-<script src="{{ url_for('static', filename='js/validation-utils.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/control-center.js') }}"></script>
-<script src="{{ url_for('static', filename='js/control-center-sidebar-nav.js') }}"></script>
-<script type="module" src="{{ url_for('static', filename='js/workspace-manager.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validation-utils.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/control-center.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/control-center-sidebar-nav.js') }}"></script>
+<script nonce="{{ csp_nonce }}" type="module" src="{{ url_for('static', filename='js/workspace-manager.js') }}"></script>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 // Function to navigate to specific tabs when stat cards are clicked
 function navigateToTab(tabId) {
     // Check if we're using sidebar navigation by looking at the DOM

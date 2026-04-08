@@ -10,13 +10,16 @@ import io
 import time
 import random
 
-def register_route_backend_tts(app):
+def register_route_backend_tts(app, limiter=None):
     """
     Text-to-speech API routes using Azure Speech Services
     """
+    # TTS-specific rate limit (expensive Azure API calls)
+    tts_limit = limiter.limit("20 per minute") if limiter else (lambda f: f)
 
     @app.route("/api/chat/tts", methods=["POST"])
     @swagger_route(security=get_auth_security())
+    @tts_limit
     @login_required
     @user_required
     def synthesize_speech():
@@ -178,7 +181,7 @@ def register_route_backend_tts(app):
                 if cancellation_details.reason == speechsdk.CancellationReason.Error:
                     error_msg += f" - {cancellation_details.error_details}"
                 debug_print(f"[TTS] ERROR - Synthesis failed: {error_msg}")
-                print(f"[ERROR] TTS synthesis failed: {error_msg}")
+                debug_print(f"[ERROR] TTS synthesis failed: {error_msg}")
                 return jsonify({"error": error_msg}), 500
             else:
                 debug_print(f"[TTS] ERROR - Unknown synthesis error, reason: {result.reason}")
@@ -190,7 +193,7 @@ def register_route_backend_tts(app):
         except Exception as e:
             debug_print(f"[TTS] ERROR - Exception: {str(e)}")
             log_event(f"TTS synthesis failed: {str(e)}", level=logging.ERROR)
-            print(f"[ERROR] TTS synthesis exception: {str(e)}")
+            debug_print(f"[ERROR] TTS synthesis exception: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({"error": f"TTS synthesis failed: {str(e)}"}), 500
