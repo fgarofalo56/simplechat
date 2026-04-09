@@ -62,5 +62,5 @@ ultimate-sitemap-parser==1.5.0
 PyGithub==2.6.0
 simhash==2.1.2
 networkx==3.4.2
-graspologic==3.4.1
+graspologic==3.4.4
 flask-limiter==3.12
