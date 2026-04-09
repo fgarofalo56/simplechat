@@ -73,3 +73,21 @@ nul
 
 # Claude Code working files
 .claude-backup/
+.claude/settings.local.json
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Serena IDE tool artifacts
+.serena/
+**/.serena/
+
+# Coverage artifacts
+coverage.json
+**/coverage.json
+
+# E2E screenshot evidence (not source code)
+e2e-*.png
+
+# Test reports (generated output)
+functional_tests/*_report.txt
