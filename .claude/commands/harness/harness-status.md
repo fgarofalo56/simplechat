@@ -44,25 +44,34 @@ Task F                              Task G
 
 ## Status Report Generation
 
-Query Archon and local files:
-
-```python
-# Get project info
-project = find_projects(project_id=PROJECT_ID)
-
-# Get all tasks
-tasks = find_tasks(filter_by="project", filter_value=PROJECT_ID)
-
-# Get session notes
-notes = find_documents(project_id=PROJECT_ID, query="Session Notes")
-```
+Read from `.harness/state.json` + `.harness/session-notes.md` + git:
 
 ```bash
+# Read task ledger
+cat .harness/state.json
+
+# Read recent session log
+tail -n 100 .harness/session-notes.md
+
 # Check test status
 npm test / pytest / dotnet test
 
 # Check git status
 git status --porcelain
+```
+
+Or in Python:
+
+```python
+import json
+with open(".harness/state.json") as f:
+    state = json.load(f)
+
+tasks = state["tasks"]
+todo   = [t for t in tasks if t["status"] == "todo"]
+doing  = [t for t in tasks if t["status"] == "doing"]
+review = [t for t in tasks if t["status"] == "review"]
+done   = [t for t in tasks if t["status"] == "done"]
 ```
 
 ---
@@ -110,7 +119,7 @@ None currently.
 
 ### Next Steps
 
-Run `/harness-next` to continue development.
+Run `/harness:harness-next` to continue development.
 ```
 
 ---
@@ -119,7 +128,7 @@ Run `/harness-next` to continue development.
 
 | Situation | Command |
 |-----------|---------|
-| Ready to continue | `/harness-next` |
+| Ready to continue | `/harness:harness-next` |
 | Has blockers | Fix blockers first |
 | Tests failing | Run test suite manually |
 | Need review | Review latest changes |

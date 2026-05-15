@@ -11,13 +11,13 @@ Start a new coding session in your autonomous agent harness project.
 
 This will:
 
-1. **Orient** - Read Archon session notes and git history
-2. **Verify** - Run health checks on completed features
-3. **Select** - Choose highest priority TODO task
-4. **Implement** - Write code for one feature
-5. **Test** - Run tests and verify functionality
-6. **Review** - Code quality check
-7. **Handoff** - Update Archon and commit cleanly
+1. **Orient** — Read `.harness/state.json` + `.harness/session-notes.md` + git history
+2. **Verify** — Run health checks on completed features
+3. **Select** — Choose highest priority TODO task
+4. **Implement** — Write code for one feature
+5. **Test** — Run tests and verify functionality
+6. **Review** — Code quality check
+7. **Handoff** — Update `.harness/state.json` + append session-notes.md + commit cleanly
 
 ---
 
@@ -25,7 +25,7 @@ This will:
 
 Ensure:
 - [ ] Harness is initialized (ran `/harness-init` at least once)
-- [ ] Archon MCP is accessible
+- [ ] `.harness/state.json` exists with tasks
 - [ ] Development environment is ready
 
 ---
@@ -37,16 +37,20 @@ Ensure:
 ```bash
 pwd
 cat .harness/config.json 2>/dev/null || echo "No harness config"
+cat .harness/state.json 2>/dev/null || echo "No state file (run /harness-init first)"
+tail -n 30 .harness/session-notes.md 2>/dev/null
 ```
 
-### 2. Query Archon
+### 2. Read Task Ledger
 
 ```python
-# Get project tasks
-tasks = find_tasks(filter_by="project", filter_value=PROJECT_ID)
+import json
+with open(".harness/state.json") as f:
+    state = json.load(f)
 
-# Get session notes
-notes = find_documents(project_id=PROJECT_ID, query="Session Notes")
+tasks = state["tasks"]
+doing = [t for t in tasks if t["status"] == "doing"]
+todo  = [t for t in tasks if t["status"] == "todo"]
 ```
 
 ### 3. Check for In-Progress Work
@@ -63,7 +67,7 @@ Write code, run tests, fix issues.
 
 ### 6. Update & Handoff
 
-Update Archon tasks and session notes, commit to git.
+Update task status in `.harness/state.json`, append to `.harness/session-notes.md`, commit to git.
 
 ---
 
@@ -81,20 +85,20 @@ Tasks are selected by:
 ## Session Workflow
 
 ```
-/harness-next
+/harness:harness-next
     |
     v
-[Read Archon context]
+[Read .harness/state.json + session-notes.md]
     |
     v
 [Check for in-progress task]
     |
     +--[Yes]--> [Continue task]
     |
-    +--[No]---> [Select next TODO]
+    +--[No]---> [Select next TODO (highest task_order)]
                     |
                     v
-            [Update status to "doing"]
+            [Set status="doing" in state.json]
                     |
                     v
             [Implement feature]
@@ -104,13 +108,13 @@ Tasks are selected by:
                     |
                     +--[Fail]--> [Fix issues]
                     |
-                    +--[Pass]--> [Update to "done"]
+                    +--[Pass]--> [Set status="done" in state.json]
                                       |
                                       v
                               [Commit changes]
                                       |
                                       v
-                              [Update session notes]
+                              [Append to session-notes.md]
                                       |
                                       v
                               [Report summary]

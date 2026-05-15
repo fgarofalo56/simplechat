@@ -12,22 +12,22 @@ Run the initializer to set up the autonomous coding harness from your specificat
 Use this **once** after running `/harness-setup`:
 
 1. You've run `/harness-setup` wizard
-2. Archon project was created
-3. Application specification is stored
-4. Feature tasks need to be generated
+2. `.harness/config.json` exists
+3. Application specification file exists (typically `.harness/spec.md`)
+4. Feature tasks need to be generated into `.harness/state.json`
 
 ## What Initialization Does
 
 ### 1. Read Application Specification
 
-From Archon documents (created during setup)
+From `.harness/spec.md` (or whichever path is named in `.harness/config.json:spec_path`).
 
 ### 2. Generate Feature Tasks
 
-Creates 20-50 detailed tasks in Archon based on the spec:
+Writes 20-50 detailed tasks into `.harness/state.json` based on the spec:
 - Clear acceptance criteria
 - Test steps for verification
-- Priority ordering
+- Priority ordering (task_order)
 - Feature grouping
 
 ### 3. Set Up Project Structure
@@ -50,7 +50,7 @@ Creates initial commit with project structure.
 
 ### 6. Create Handoff Notes
 
-Updates Archon session notes for coding agent.
+Appends a session-1 entry to `.harness/session-notes.md` for the coding agent.
 
 ---
 
@@ -65,45 +65,32 @@ The agent is generating detailed tasks - it may appear slow but is working.
 ## After Initialization
 
 When complete, you'll have:
-- [ ] Feature tasks in Archon (view with `/harness-status`)
+- [ ] Feature tasks in `.harness/state.json` (view with `/harness-status`)
 - [ ] Project structure created
 - [ ] Git repository initialized
 - [ ] Ready for coding sessions
 
 Then run:
 ```bash
-/harness-next   # Start first coding session
+/harness:harness-next   # Start first coding session
 ```
 
 ---
 
 ## Task Generation Pattern
 
-Tasks are created with this structure:
+Tasks are entries in `.harness/state.json` with this structure:
 
-```python
-manage_task("create",
-    project_id=PROJECT_ID,
-    title="Implement user authentication",
-    description="""
-    ## Requirements
-    - JWT-based authentication
-    - Login/logout endpoints
-    - Token refresh mechanism
-
-    ## Acceptance Criteria
-    - [ ] POST /auth/login returns JWT
-    - [ ] POST /auth/logout invalidates session
-    - [ ] POST /auth/refresh renews token
-
-    ## Test Steps
-    1. Test valid login credentials
-    2. Test invalid credentials
-    3. Test token expiration
-    """,
-    feature="Authentication",
-    task_order=90
-)
+```json
+{
+  "id": "task-007",
+  "title": "Implement user authentication",
+  "description": "## Requirements\n- JWT-based authentication\n- Login/logout endpoints\n- Token refresh mechanism\n\n## Acceptance Criteria\n- [ ] POST /auth/login returns JWT\n- [ ] POST /auth/logout invalidates session\n- [ ] POST /auth/refresh renews token\n\n## Test Steps\n1. Test valid login credentials\n2. Test invalid credentials\n3. Test token expiration",
+  "feature": "Authentication",
+  "task_order": 90,
+  "status": "todo",
+  "assignee": "harness-coder"
+}
 ```
 
 ---
