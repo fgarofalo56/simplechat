@@ -357,8 +357,8 @@ PHASES
 3. Integration    - [X tasks] - [X hours]
 4. Testing & Docs - [X tasks] - [X hours]
 
-ARCHON TASKS CREATED
---------------------
+TASKS CREATED (GitHub Issues / plan file)
+-----------------------------------------
 [List of created tasks with IDs]
 
 NEXT STEPS
@@ -366,7 +366,7 @@ NEXT STEPS
 1. Review the implementation plan
 2. Adjust estimates if needed
 3. Run /prp-implement to begin implementation
-4. Or manually start with: /start
+4. Or manually start with the session-init skill (or /status)
 
 The plan breaks down the PRD into actionable phases with clear validation gates.
 ```

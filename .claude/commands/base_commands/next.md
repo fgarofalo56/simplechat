@@ -6,7 +6,7 @@ description: Get next available task
 What should I work on next?
 
 Check:
-- Archon tasks (in-progress and todo)
+- Open GitHub issues + current task list
 - Current tool development priorities
 - Any blockers that need resolution
 - Failed attempts log (what to avoid)

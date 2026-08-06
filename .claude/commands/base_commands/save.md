@@ -11,8 +11,6 @@ Update these files with what we've done so far this session:
 - .claude/FAILED_ATTEMPTS.md - Any new failures
 - .claude/TOOL_REGISTRY.md - Any new tools
 
-Also update Archon:
-- Task statuses if changed
-- "Session Context & Memory" document
+Also update .claude/reference/session-context.md (status, decisions, next steps).
 
 Confirm what was saved. This is a checkpoint, not end of session.

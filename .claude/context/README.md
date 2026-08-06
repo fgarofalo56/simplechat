@@ -14,7 +14,7 @@ Context files store information that should persist across Claude Code sessions:
 
 1. **Automatic Loading**: Files listed in `settings.json` → `contextFiles` are loaded at session start
 2. **Manual Loading**: Use `@.claude/context/filename.md` to reference specific files
-3. **Archon Integration**: Critical context should also be saved to Archon documents for backup
+3. **Durability**: These files are version-controlled — commit updates so context survives resets; track cross-session work in GitHub Issues
 
 ## Recommended Files
 
@@ -77,7 +77,7 @@ Last Updated: 2025-01-23
 2. **Update regularly** - Stale context is worse than no context
 3. **Use clear headers** - Makes scanning easier
 4. **Date your updates** - Know when information was last verified
-5. **Link to Archon** - Mirror critical info in Archon documents
+5. **Commit your updates** - Version-controlled context is the backup; open GitHub Issues for cross-session work items
 
 ## Context Loading Strategy
 
@@ -88,21 +88,10 @@ Last Updated: 2025-01-23
 | Full | + architecture.md, conventions.md | Major features |
 | Research | + specific topic files | Deep dives |
 
-## Integration with Archon
+## Durable Context
 
-For important project knowledge, maintain both:
-1. **Local context files** - Fast loading, always available
-2. **Archon documents** - Backup, searchable, shareable
-
-```python
-# Save critical context to Archon
-manage_document("create",
-    project_id="...",
-    title="Architecture",
-    document_type="design",
-    content={"markdown": "..."}
-)
-```
+Important project knowledge lives in these version-controlled files — commit updates alongside your work.
+Track cross-session work items in GitHub Issues (`gh issue`).
 
 ---
 

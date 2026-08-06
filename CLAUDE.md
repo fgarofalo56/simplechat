@@ -23,15 +23,13 @@ For tracking work in the current session and across sessions, use **native Claud
 
 ### Rule 1: Load Context First
 
-At the start of EVERY session, before any code work:
+When starting substantive work:
 
 1. Run the [Startup Protocol](#startup-protocol).
 2. Read this `CLAUDE.md` and any relevant `.claude/reference/*.md`.
 3. Check `git status` and `git log -10` for in-flight work.
 4. Check open GitHub Issues / PRs if relevant: `gh pr list` / `gh issue list`.
 5. Check `MEMORY.md` if there's per-project auto-memory at `~/.claude/projects/<slug>/memory/`.
-
-Never start coding without orienting first.
 
 ### Rule 2: Preserve Context in the Filesystem
 
@@ -45,7 +43,7 @@ Project knowledge that survives context resets lives in **files**, not in your c
 | API surface | `.claude/reference/api.md` (or generated OpenAPI) | After API surface changes |
 | Non-obvious facts / gotchas | `MEMORY.md` (auto-memory) | When you hit something a future session needs |
 
-If the context window approaches 70%, update `session-context.md` BEFORE compacting. Load specific reference docs on demand with `@.claude/reference/<file>.md` syntax — don't preload everything.
+Auto-compaction manages context; update `session-context.md` before ending significant sessions. Load specific reference docs on demand with `@.claude/reference/<file>.md` syntax — don't preload everything.
 
 ### Rule 3: Skills Discovery
 
@@ -65,7 +63,7 @@ Forbidden paths: `.env`, `.env.*`, `secrets/**`, `~/.ssh/**`, `~/.aws/**`, `**/c
 
 ### Rule 7: Automatic Behaviors Live in Hooks, Not Memory
 
-If you want Claude to "always do X when Y happens" (e.g., run a linter after every edit, post to Slack on session end, validate env vars before deploy), that **must** be a hook in `.claude/settings.json` — not a memory entry or a CLAUDE.md instruction.
+If you want Claude to "always do X when Y happens" (e.g., run a linter after every edit, post to Slack on session end, validate env vars before deploy), that **must** be a hook in `.claude/settings.json` (create it if needed) — not a memory entry or a CLAUDE.md instruction.
 
 | Mechanism | Fires when | Best for |
 |-----------|-----------|----------|
@@ -84,8 +82,8 @@ If your rule says "from now on, when X, do Y" — write a hook. Memory cannot en
 |-------|-------|
 | **Project Title** | Simplechat |
 | **GitHub Repo** | https://github.com/fgarofalo56/simplechat.git |
-| **Repository Path** | [REPOSITORY_PATH] |
-| **Primary Stack** | [PRIMARY_STACK] |
+| **Repository Path** | E:\Repos\GitHub\simplechat |
+| **Primary Stack** | Python 3.12 / Flask + Azure OpenAI (RAG), Azure Cosmos DB, Azure AI Search |
 
 ```bash
 gh repo view https://github.com/fgarofalo56/simplechat.git              # current state
@@ -97,7 +95,7 @@ gh pr list --state open                  # in-flight changes
 
 ## Startup Protocol
 
-Run at the start of EVERY session:
+Run when starting substantive work:
 
 1. **Read this file** + any reference docs the task touches (`@.claude/reference/<topic>.md`).
 
@@ -162,34 +160,10 @@ PRPs/
 
 ---
 
-## Autonomous Agent Harness
-
-The Harness provides a multi-agent pipeline for greenfield development with autonomous iteration.
-
-### Quick Reference
-
-| Command | Purpose |
-|---------|---------|
-| `/harness-setup` | Configure harness for this project |
-| `/harness-init` | Parse spec and generate tasks |
-| `/harness-next` | Start next coding iteration |
-| `/harness-status` | Check pipeline status |
-
-### Agent Pipeline
-
-```
-Initializer -> Coder -> Tester -> Reviewer
-```
-
-Each agent operates with its own prompt and constraints. The pipeline iterates until all tasks are complete.
-
----
-
----
-
 ## Autonomous Harness
 
-Multi-agent pipeline: Initializer -> Coder -> Tester -> Reviewer.
+Multi-agent pipeline for greenfield development: Initializer -> Coder -> Tester -> Reviewer.
+Each agent operates with its own prompt and constraints; the pipeline iterates until all tasks are complete.
 
 | Command | Purpose |
 |---------|---------|
@@ -219,8 +193,6 @@ Requirements are traced through: Requirement -> Design -> Code -> Test
 
 ---
 
----
-
 ## Project Type: Backend API
 
 | Concern | Guidance |
@@ -233,6 +205,7 @@ Requirements are traced through: Requirement -> Design -> Code -> Test
 | **API versioning** | URL-versioned (`/v1/`) or header-versioned. Never silently break clients. |
 
 Long-running operations: return a job ID + status endpoint, not a hung connection.
+
 ---
 
 ## Code Style Guidelines
@@ -243,21 +216,13 @@ Long-running operations: return a job ID + status endpoint, not a hung connectio
 |-----------|-------------|
 | **Single Responsibility** | Each function/class does one thing well |
 | **Readable over Clever** | Prefer clarity over brevity |
-| **DRY** | Don't Repeat Yourself - extract common logic |
+| **DRY** | Don't Repeat Yourself - extract after the third repetition, not the second |
 | **Testable** | Write code that's easy to test |
 | **Minimal Dependencies** | Only add libraries when truly needed |
 
-### python Specific Guidelines
+### Language-Specific Guidelines
 
-> Customize this section for your primary language.
-
-```
-- Naming conventions
-- Import organization
-- Error handling patterns
-- Async/await patterns
-- Type annotations
-```
+See [Code Style — Python](#code-style--python) and [Code Style — JavaScript](#code-style--javascript) below for this project's conventions.
 
 ### Anti-Patterns to Avoid
 
@@ -272,31 +237,15 @@ Long-running operations: return a job ID + status endpoint, not a hung connectio
 
 ---
 
----
-
-## Code Style
-
-| Principle | Apply to |
-|-----------|----------|
-| Single responsibility | Functions, classes, modules |
-| Readable over clever | Default |
-| DRY | Extract after the third repetition, not the second |
-| Testable | Pure functions where possible |
-| Minimal dependencies | Add only when truly needed |
-
-python-specific conventions: customize this section.
-
----
-
 ## Testing Requirements
 
 ### Test Coverage Standards
 
 | Test Type | Coverage Target | Location |
 |-----------|----------------|----------|
-| **Unit Tests** | 80%+ | `tests/unit/` |
+| **Unit Tests** | 80%+ on changed code | `tests/unit/` |
 | **Integration Tests** | Critical paths | `tests/integration/` |
-| **E2E Tests** | Happy paths | `tests/e2e/` |
+| **E2E Tests** | Happy paths + critical flows | `tests/e2e/` |
 
 ### Test Structure (AAA Pattern)
 
@@ -317,19 +266,7 @@ describe("ServiceName", () => {
 });
 ```
 
----
-
----
-
-## Testing
-
-| Type | Target | Location |
-|------|--------|----------|
-| Unit | 80%+ on changed code | `tests/unit/` |
-| Integration | Critical paths | `tests/integration/` |
-| E2E | Happy paths + critical flows | `tests/e2e/` |
-
-AAA pattern: Arrange / Act / Assert. Run tests before marking a task `review`.
+Run tests before marking work complete.
 
 ---
 
@@ -344,6 +281,8 @@ AAA pattern: Arrange / Act / Assert. Run tests before marking a task `review`.
 | Private keys | Vault/HSM |
 | Connection strings | Config files (gitignored) |
 | .env files | .env.example template |
+
+The `.env.example` in this repo lists required variables.
 
 ### Security Checklist
 
@@ -365,17 +304,6 @@ secrets/**
 **/credentials.json
 **/service-account.json
 ```
-
----
-
----
-
-## Security
-
-Never commit: API keys, passwords, private keys, connection strings, `.env` files.
-Use environment variables. The `.env.example` in this repo lists required variables.
-
-Validate user input. Parameterize queries. Sanitize output. Keep deps updated.
 
 ---
 
@@ -414,8 +342,6 @@ Validate user input. Parameterize queries. Sanitize output. Keep deps updated.
 
 ---
 
----
-
 ## End of Session Protocol
 
 1. Update `.claude/reference/session-context.md` with: what was completed, decisions made, next steps, blockers.
@@ -424,134 +350,15 @@ Validate user input. Parameterize queries. Sanitize output. Keep deps updated.
 4. If the work warrants a follow-up GitHub Issue (something you'll want to find later), open it now: `gh issue create`.
 5. Brief the user with a session summary.
 
-Always update `session-context.md` BEFORE `/clear` or `/compact` near 70%.
-
 ---
 
 ## Available Tools
 
-> This section documents the Claude Code tools deployed with this project. Use these tools to work more effectively.
+Tools are auto-discovered by Claude Code — no need to hand-maintain tool tables here.
+Browse `.claude/commands/` for slash commands and `.claude/agents/` for subagents;
+global skills live in `~/.claude/skills/`.
 
-### Skills (`.claude/skills/`)
-
-_No project-specific skills deployed. Check `~/.claude/skills/` for global skills._
-
-### Commands (`.claude/commands/`)
-
-| Command | Category |
-|---------|----------|
-| `/end` | base_commands |
-| `/next` | base_commands |
-| `/save` | base_commands |
-| `/start` | base_commands |
-| `/status` | base_commands |
-| `/harness-init` | harness |
-| `/harness-next` | harness |
-| `/harness-setup` | harness |
-| `/harness-status` | harness |
-| `/prp-debug` | prp |
-| `/prp-implement` | prp |
-| `/prp-issue-fix` | prp |
-| `/prp-issue-investigate` | prp |
-| `/prp-plan` | prp |
-| `/prp-prd` | prp |
-| `/prp-review` | prp |
-
-### Agents (`.claude/agents/`)
-
-| Agent | Type |
-|-------|------|
-| `api-documenter` | Markdown |
-| `architect-review` | Markdown |
-| `background-researcher` | Markdown |
-| `code-simplifier` | Markdown |
-| `data-engineer` | Markdown |
-| `docs-architect` | Markdown |
-| `documentation-manager` | Markdown |
-| `mermaid-expert` | Markdown |
-| `python-pro` | Markdown |
-| `reference-builder` | Markdown |
-| `search-specialist` | Markdown |
-| `validation-gates` | Markdown |
-| `verify-app` | Markdown |
-
-### MCP Servers (`.vscode/mcp.json`)
-
-_No project-specific MCP servers configured. See `.vscode/mcp.json` for active servers._
-
----
-
----
-
-## Claude Code Capabilities Quick Reference
-
-Pointers to features that meaningfully change how a task gets done. Use these when the situation matches — don't reach for them by default.
-
-### Sub-agents and isolation
-
-| When | Tool | Notes |
-|------|------|-------|
-| Need independent research that would bloat main context | `Agent` with `subagent_type: Explore` or `general-purpose` | Returns a single message; main thread stays clean |
-| Need 2+ independent investigations | Multiple `Agent` calls in **one** message | Run in parallel |
-| Risky refactor that might fail | `Agent` with `isolation: worktree` | Auto-cleanup if no changes made |
-| Specialized work matches an agent | `Agent` with the right `subagent_type` | See agent registry in `.claude/agents/` |
-
-### Background tasks
-
-| When | How |
-|------|-----|
-| Command runs >5 min (CI watch, large build) | `Bash` with `run_in_background: true` |
-| Want notification on completion | The harness notifies automatically — **don't poll** |
-| Long agent run that doesn't block your next steps | `Agent` with `run_in_background: true` |
-
-### Context management
-
-| Action | Command / Syntax |
-|--------|------------------|
-| Check token usage | `/cost` |
-| Compress conversation (preserves intent) | `/compact` — update Session Context first if near 70% |
-| Hard reset | `/clear` — save context to disk first |
-| Load a reference doc on demand | `@.claude/reference/<file>.md` in user prompt |
-| Switch model mid-session | `/model opus` / `/model sonnet` / `/model haiku` |
-| Faster Opus output | `/fast` (Opus 4.6 / 4.7 only — no quality drop) |
-
-### Permission & settings
-
-| Need | Where |
-|------|-------|
-| Allow specific commands without prompts | `permissions.allow` in `.claude/settings.json` |
-| Per-tool restrictions for a skill/agent | `allowed-tools:` frontmatter |
-| Auto-accept edits in current session | `/permissions` → accept edits mode |
-| Plan-only mode (read, don't write) | `/permissions` → plan mode |
-
-### Model selection heuristic
-
-| Task type | Default model |
-|-----------|---------------|
-| Heavy reasoning, architecture, audits | Opus (Opus 4.7 has 1M context) |
-| Day-to-day coding, refactors | Sonnet |
-| Quick lookups, simple edits, batch ops | Haiku |
-
-### Skill & command frontmatter (modern fields)
-
-```yaml
----
-name: my-skill
-description: When to use it (matters for auto-invocation)
-effort: high              # low|medium|high|max — reasoning depth
-context: fork             # Run in isolated subagent
-allowed-tools: Read, Grep # Restrict tool access
-argument-hint: "[file]"   # Shown in autocomplete
-hooks:                    # Skill-scoped hooks
-  PostToolUse:
-    - matcher: "Edit"
-      hooks: [{type: command, command: "./format.sh"}]
----
-```
-
-### Memory system
-
-Per-project auto-memory lives in `~/.claude/projects/<project-slug>/memory/`. Index is `MEMORY.md`. Save user/feedback/project/reference notes there — never duplicate facts already in code or git history.
+No project MCP servers configured.
 
 ---
 
@@ -564,7 +371,7 @@ simplechat/
 +-- .env.example                 # Environment variable template
 +-- .gitignore                   # Git ignore rules
 +-- .claude/
-|   +-- config.yaml              # Archon project link
+|   +-- config.yaml              # Project config (template metadata)
 |   +-- skills/                  # Project-specific skills
 |   +-- commands/                # Project-specific commands
 |   +-- agents/                  # Project-specific agents
@@ -584,12 +391,6 @@ simplechat/
 
 ---
 
-> **Version**: 2.0.0
-> **Last Updated**: 2026-05-14
-> **Template Source**: claude-code-tools
-
----
-
 ## Quick Reference
 
 | Phrase | Action |
@@ -600,9 +401,6 @@ simplechat/
 | `@.claude/reference/<file>.md` | Load a specific reference doc into context on demand |
 
 ---
-
-> **Template Version**: 4.0.0 | **Generated**: 2026-05-14
-> **Source**: claude-code-tools project wizard
 
 ## Code Style — Python
 
@@ -763,7 +561,7 @@ if __name__ == "__main__":
 
 ## Task & Knowledge Workflow
 
-Mandatory before coding:
+Suggested workflow:
 
 ```
 1. Plan            -> TodoWrite (breaks the work into trackable steps)
@@ -793,4 +591,6 @@ For projects with extracted internal documentation:
 If you genuinely need vector retrieval (semantic similarity, fuzzy concept matching across a large private corpus), evaluate options like LanceDB-on-disk or a self-hosted Qdrant — but that's a deliberate, scoped infrastructure decision, not a default.
 
 ---
+
+> **Template Version**: 5.0.0 | **Updated**: 2026-08-06 | **Source**: claude-code-tools project wizard
 

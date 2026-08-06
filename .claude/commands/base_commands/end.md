@@ -11,9 +11,7 @@ Execute the END OF SESSION PROTOCOL defined in CLAUDE.md.
    - FAILED_ATTEMPTS.md with any new failures and analysis
    - TOOL_REGISTRY.md with any tools created or modified
 
-2. Update Archon:
-   - Update task statuses
-   - Update "Session Context & Memory" document
+2. Update .claude/reference/session-context.md (status, decisions, next steps)
 
 3. Update config.yaml:
    - Update the `updated_at` timestamp
@@ -31,4 +29,4 @@ Execute the END OF SESSION PROTOCOL defined in CLAUDE.md.
    - Tools created/modified
    - Recommended next session focus
 
-Confirm all memory files and Archon have been updated.
+Confirm session context files are updated.

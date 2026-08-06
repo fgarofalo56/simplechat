@@ -23,7 +23,7 @@ Execute the fix based on investigation findings with rigorous validation.
 
 Check for previous investigation of this issue:
 - Review conversation history
-- Check Archon documents
+- Check .claude/reference/ and docs/ for prior context
 - Check PRPs/issues/ directory if exists
 
 If no investigation found:
